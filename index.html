@@ -323,7 +323,7 @@
       measurementId:"G-H6WCVTQQEM"
     };
 
-    // Owner + admin UID (local allowlist fallback; tetap pakai RTDB roles)
+    // Allowlist lokal untuk UX (role tetap dari RTDB)
     const OWNER_UID="dqFIuPQY1PfYvcLdkrxztZEDkkl1";
     const ADMIN_UID="nIGjiue818WwLCjEsSUZX3OLtan1";
     const LOCAL_ADMINS=[OWNER_UID, ADMIN_UID];
@@ -347,10 +347,8 @@
     const fmtDate=(ms)=>ms?new Date(ms).toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"}):"Permanen";
     const toEOD=(Y,M,D)=>new Date(Y,M-1,D,23,59,59,999).getTime();
     const fromInputDate=(v)=>{const [Y,M,D]=v.split("-").map(n=>parseInt(n,10));return {Y,M,D};};
-    const sanitizeKey=(k)=>(k||"").normalize("NFKC").replace(/\\s+/g,"").replace([^\\w\\-.:@]/g,""); // will be overridden below by a safer version
+    function sanitize(k){ return (k||"").normalize("NFKC").replace(/\s+/g,"").replace(/[^\w\-.:@]/g,""); }
 
-    // safer sanitize
-    function sanitize(k){ return (k||"").normalize("NFKC").replace(/\\s+/g,"").replace(/[^\\w\\-.:@]/g,""); }
     /* Drawer & routing */
     const protectedRoutes=new Set(["dashboard","keys","settings","profile"]);
     const menuBtn=$("#menuBtn"), drawer=$("#drawer"), backdrop=$("#backdrop");
@@ -504,7 +502,6 @@
       if(btnSaveGlobal) btnSaveGlobal.disabled=!editable;
       if(btnClearGlobal) btnClearGlobal.disabled=!editable;
       if(btnShareGlobal) btnShareGlobal.disabled=!editable;
-      // profile actions allowed to all logged-in admins (no special disable)
     }
 
     /* ===== Login & Register ===== */
@@ -550,8 +547,7 @@
         btnUploadAvatar.disabled=true; btnUploadAvatar.textContent="Mengunggah…";
         const path=`profile/${u.uid}.jpg`;
         await uploadBytes(sRef(storage,path), f, {contentType:f.type});
-        const url=await getDownloadURL(sRef(storage,path));
-        // refresh avatars
+        await getDownloadURL(sRef(storage,path));
         setAccountVisual(u);
         toast("Avatar terunggah");
       }catch(e){ toast("Upload gagal"); }
@@ -590,12 +586,11 @@
       catch(e){ toast("Gagal ubah password"); }
     });
 
-    /* ===== Keys render & actions (sama seperti versi sebelumnya, ringkas) ===== */
+    /* ===== Keys render & actions ===== */
     function humanBytes(n){ const u=["B","KB","MB","GB","TB"]; let i=0,v=Math.max(n||0,0); while(v>=1024 && i<u.length-1){ v/=1024; i++; } return `${v.toFixed(v<10&&i>0?1:0)}${u[i]}`; }
     function setUsage(elId,barId,val,denom){ const el=document.getElementById(elId),bar=document.getElementById(barId); if(el) el.textContent=humanBytes(val); if(bar) bar.style.setProperty("--w",Math.min(100,(val/Math.max(denom,1))*100).toFixed(1)+"%"); }
     async function refreshLocalDbUsage(){ try{ const snap=await get(dRef(db)); const size=new Blob([JSON.stringify(snap.val()||{})]).size; setUsage("db-bytes","bar-db",size,1024*1024); }catch(e){} }
 
-    function iconSVG(name){ switch(name){ case "noexp":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 0 1 7-7c1.9 0 3.6.78 4.83 2.05"/><path d="M19 12a7 7 0 0 1-7 7c-1.9 0-3.6-.78-4.83-2.05"/><path d="M22 2 2 22"/></svg>'; case "setdate":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>'; case "share":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51 15.42 17.49"/><path d="M15.41 6.51 8.59 10.49"/></svg>'; case "del":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4h8v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>'; default:return ''; } }
     function getFilter(){ return localStorage.getItem("gx:statusFilter")||"all"; }
     function setFilterChip(val){ localStorage.setItem("gx:statusFilter",val); $$(".chip.filter").forEach(c=>c.classList.toggle("active",c.dataset.filter===val)); }
     document.addEventListener("click",(e)=>{ const f=e.target.closest(".chip.filter"); if(!f) return; const val=f.dataset.filter; setFilterChip(val); render(); if(isAuthed()) scheduleSync(auth.currentUser.uid); });
@@ -648,8 +643,15 @@
     },{passive:true});
 
     /* Form controls */
-    const sanitizeKey=(k)=>sanitize(k);
-    if(btnAdd) btnAdd.onclick=async ()=>{ const raw=(newKey?.value||""); const k=sanitizeKey(raw); if(!k){ toast("Isi key"); return; } const val=(exp?.value||"").trim(); let ms=0; if(val){ const {Y,M,D}=fromInputDate(val); ms=toEOD(Y,M,D); } selfWriteAt=Date.now(); await update(dRef(db,"auth/keys/"+k),{exp:ms}); if(newKey) newKey.value=""; if(exp) exp.value=""; toast("Ditambahkan"); };
+    if(btnAdd) btnAdd.onclick=async ()=>{
+      const raw=(newKey?.value||""); const k=sanitize(raw);
+      if(!k){ toast("Isi key"); return; }
+      const val=(exp?.value||"").trim(); let ms=0; if(val){ const {Y,M,D}=fromInputDate(val); ms=toEOD(Y,M,D); }
+      selfWriteAt=Date.now();
+      await update(dRef(db,"auth/keys/"+k),{exp:ms});
+      if(newKey) newKey.value=""; if(exp) exp.value="";
+      toast("Ditambahkan");
+    };
     if(btnSaveGlobal) btnSaveGlobal.onclick=async ()=>{ selfWriteAt=Date.now(); await set(dRef(db,"auth/globalKey"),(globalKey?.value||"").trim()); toast("Global key disimpan"); };
     if(btnClearGlobal) btnClearGlobal.onclick=async ()=>{ selfWriteAt=Date.now(); await set(dRef(db,"auth/globalKey"),""); if(globalKey) globalKey.value=""; toast("Dikosongkan"); };
     if(btnShareGlobal) btnShareGlobal.onclick=async ()=>{ const v=(globalKey?.value||"").trim(); if(!v){ toast("Global key kosong"); return; } const text="GLOBAL KEY: "+v; if(navigator.share){ try{ await navigator.share({title:"GxMods Global Key",text}); }catch{} } else { await navigator.clipboard.writeText(text); toast("Disalin (share tidak didukung)"); } };
