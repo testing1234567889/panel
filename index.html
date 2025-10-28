@@ -169,7 +169,7 @@
     </button>
     <div class="title">GxMods Key Panel</div>
     <div class="grow"></div>
-    <button id="topAvatar" class="avatar btn ghost" aria-label="Akun" style="padding:0;width:36px;height:36px;border-radius:999px"><span>?</span></button>
+    <button id="btnSignOut" class="btn ghost">Sign Out</button>
   </header>
 
   <!-- Drawer (lebih cantik) -->
@@ -201,7 +201,7 @@
     </nav>
 
     <!-- Footer versi kiri -->
-    <div class="drawer-footer" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span id="appVersion">v0.0.1 beta</span><button id="drawerLogout" class="btn small">Keluar</button></div>
+    <div class="drawer-footer"><span id="appVersion">v0.0.1 beta</span></div>
   </aside>
   <div id="backdrop" class="backdrop"></div>
 
@@ -232,11 +232,6 @@
             <div class="mini-label">Tanpa Exp</div>
             <div class="mini-val" id="st-perm">0</div>
             <div class="mini-bar"><i id="bar-perm" style="--w:0%"></i></div>
-          </div>
-          <div class="mini-row">
-            <div class="mini-label">DB Storage (approx)</div>
-            <div class="mini-val" id="db-bytes">-</div>
-            <div class="mini-bar"><i id="bar-db" style="--w:0%"></i></div>
           </div>
         </div>
 
@@ -317,6 +312,55 @@
         </div>
 
         <h3>Pengaturan</h3>
+        <!-- === Profil === -->
+        <div class="card" id="profileCard">
+          <h3>Profil</h3>
+
+          <div class="row" style="display:flex;align-items:center;gap:12px">
+            <div class="avatar" id="pf-preview" style="width:56px;height:56px;border-radius:999px;display:flex;align-items:center;justify-content:center"><span>?</span></div>
+            <div style="flex:1">
+              <div class="muted" style="margin-bottom:6px">Foto Profil</div>
+              <input id="pf-avatar" type="file" accept="image/*">
+            </div>
+            <button id="btnSaveProfile" class="btn">Simpan Profil</button>
+          </div>
+
+          <div class="row" style="display:flex;gap:12px">
+            <div style="flex:1">
+              <label class="muted">Nama Tampilan</label>
+              <input id="pf-name" type="text" placeholder="Nama Anda">
+            </div>
+          </div>
+
+          <div class="row" style="display:flex;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:220px">
+              <label class="muted">Email baru</label>
+              <input id="pf-email-new" type="email" placeholder="name@example.com">
+            </div>
+            <div style="flex:1;min-width:220px">
+              <label class="muted">Password saat ini</label>
+              <input id="pf-curpass-e" type="password" placeholder="••••••••">
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button id="btnChangeEmail" class="btn ghost">Ganti Email</button>
+            </div>
+          </div>
+
+          <div class="row" style="display:flex;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:220px">
+              <label class="muted">Password saat ini</label>
+              <input id="pf-curpass" type="password" placeholder="••••••••">
+            </div>
+            <div style="flex:1;min-width:220px">
+              <label class="muted">Password baru</label>
+              <input id="pf-pass-new" type="password" placeholder="••••••••">
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button id="btnChangePass" class="btn ghost">Ganti Password</button>
+            </div>
+          </div>
+        </div>
+    
 
         <div class="row" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           <div><strong>Kurangi efek</strong><span class="muted" style="margin-left:8px">Animasi tetap halus, efek berat diminimalkan.</span></div>
@@ -420,7 +464,7 @@
     });
 
     /* =================== Firebase =================== */
-    const ADMIN_UID = "jpfXP6BWiORTHAnKIv0BjxHN8Z93";
+    const ADMIN_UIDS=["jpfXP6BWiORTHAnKIv0BjxHN8Z93","dqFIuPQY1PfYvcLdkrxztZEDkkl1"]; const ADMIN_UID=ADMIN_UIDS[0];
     const firebaseConfig = {
   apiKey: "AIzaSyAu--L2T5_o9xLVT09mXFLIcpPuLLWlL1Q",
   authDomain: "aplikasi-percobaan-dbf84.firebaseapp.com",
@@ -432,12 +476,17 @@
   measurementId: "G-H6WCVTQQEM"
 };
 
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-    import {
-      getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
-      setPersistence, browserLocalPersistence
-    } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-    import { getDatabase, ref, onValue, set, update, remove, off, get } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+    
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
+  setPersistence, browserLocalPersistence,
+  updateProfile, updateEmail, updatePassword,
+  reauthenticateWithCredential, EmailAuthProvider
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import { getDatabase, ref, onValue, set, update, remove, off, get } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
+
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -491,9 +540,9 @@
     const isAuthed = ()=>{
       const u=auth.currentUser;
       if(!u) return false;
-      return (u.uid===ADMIN_UID) || !!ADMINS[u.uid];
+      return (ADMIN_UIDS.includes(u.uid)) || !!ADMINS[u.uid];
     };
-    const roleOf = (uid)=> uid===ADMIN_UID ? "owner" : (ADMINS?.[uid]===true ? "owner" : (ADMINS?.[uid]||null));
+    const roleOf = (uid)=> ADMIN_UIDS.includes(uid) ? "owner" : (ADMINS?.[uid]===true ? "owner" : (ADMINS?.[uid]||null));
     const canEdit = ()=> {
       const u=auth.currentUser;
       if(!u) return false;
@@ -528,17 +577,95 @@
     const keyList=$("#keyList"), search=$("#search");
     const sortExpired=$("#sortExpired"), hideGlobal=$("#hideGlobal"), allowSelect=$("#allowSelect"), reduce=$("#reduce");
     const email=$("#email"), password=$("#password"), btnLogin=$("#btnLogin");
-    const topAvatar=$("#topAvatar");
-    const drawerLogout=$("#drawerLogout");
+    const btnSignOut=$("#btnSignOut");
     const globalKeyCard=$("#globalKeyCard");
     const acctEmail=$("#acctEmail");
     const menuEmail=$("#menuEmail");
     const menuRole=$("#menuRole");
     const menuAvatar=$("#menuAvatar");
-    // Top avatar opens drawer; drawer footer logout signs out
-    if (topAvatar) topAvatar.addEventListener("click", openDrawer);
-    if (drawerLogout) drawerLogout.addEventListener("click", ()=>{ signOut(auth).catch(()=>{}); });
+    // === Profile/Settings Handlers ===
+    const pfPreview = $("#pf-preview");
+    const pfAvatar  = $("#pf-avatar");
+    const pfName    = $("#pf-name");
+    const pfEmailNew= $("#pf-email-new");
+    const pfCurPassE= $("#pf-curpass-e");
+    const pfCurPass = $("#pf-curpass");
+    const pfPassNew = $("#pf-pass-new");
+    const btnSaveProfile = $("#btnSaveProfile");
+    const btnChangeEmail = $("#btnChangeEmail");
+    const btnChangePass  = $("#btnChangePass");
 
+    pfAvatar?.addEventListener("change", ()=>{
+      const f = pfAvatar.files && pfAvatar.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = (e)=>{ if(pfPreview) { pfPreview.style.background = `center/cover no-repeat url('${e.target.result}')`; pfPreview.innerHTML=""; } };
+      reader.readAsDataURL(f);
+    });
+
+    async function saveProfile(){
+      if(!auth.currentUser){ toast("Tidak login"); return; }
+      const updates = {};
+      const name = (pfName?.value||"").trim();
+      if(name) updates.displayName = name;
+
+      try{
+        btnSaveProfile && (btnSaveProfile.disabled=true, btnSaveProfile.textContent="Menyimpan…");
+        if(pfAvatar && pfAvatar.files && pfAvatar.files[0]){
+          const storage = getStorage(app);
+          const path = `profile/${auth.currentUser.uid}.jpg`;
+          await uploadBytes(sRef(storage, path), pfAvatar.files[0], {contentType: pfAvatar.files[0].type || 'image/jpeg'});
+          const url = await getDownloadURL(sRef(storage, path));
+          updates.photoURL = url;
+        }
+        if(Object.keys(updates).length){
+          await updateProfile(auth.currentUser, updates);
+          toast("Profil tersimpan");
+          setAccountEmail(auth.currentUser);
+        }else{
+          toast("Tidak ada perubahan");
+        }
+      }catch(e){ toast("Gagal simpan profil"); }
+      finally{ if(btnSaveProfile){ btnSaveProfile.disabled=false; btnSaveProfile.textContent="Simpan Profil"; } }
+    }
+    btnSaveProfile?.addEventListener("click", saveProfile);
+
+    async function reauth(currentPass){
+      const email = auth.currentUser?.email || "";
+      const cred = EmailAuthProvider.credential(email, currentPass||"");
+      await reauthenticateWithCredential(auth.currentUser, cred);
+    }
+
+    btnChangeEmail?.addEventListener("click", async ()=>{
+      const newEmail = (pfEmailNew?.value||"").trim();
+      const cur = (pfCurPassE?.value||"");
+      if(!newEmail || !cur){ toast("Isi email baru & password saat ini"); return; }
+      try{
+        btnChangeEmail.disabled=true; btnChangeEmail.textContent="Memproses…";
+        await reauth(cur);
+        await updateEmail(auth.currentUser, newEmail);
+        toast("Email diperbarui");
+        setAccountEmail(auth.currentUser);
+        pfEmailNew.value=""; pfCurPassE.value="";
+      }catch(e){ toast("Gagal ganti email"); }
+      finally{ btnChangeEmail.disabled=false; btnChangeEmail.textContent="Ganti Email"; }
+    });
+
+    btnChangePass?.addEventListener("click", async ()=>{
+      const cur = (pfCurPass?.value||"");
+      const nw  = (pfPassNew?.value||"");
+      if(!cur || !nw){ toast("Isi password saat ini & baru"); return; }
+      if(nw.length < 6){ toast("Password baru minimal 6 karakter"); return; }
+      try{
+        btnChangePass.disabled=true; btnChangePass.textContent="Memproses…";
+        await reauth(cur);
+        await updatePassword(auth.currentUser, nw);
+        toast("Password diperbarui");
+        pfCurPass.value=""; pfPassNew.value="";
+      }catch(e){ toast("Gagal ganti password"); }
+      finally{ btnChangePass.disabled=false; btnChangePass.textContent="Ganti Password"; }
+    });
+    
 
     /* ===== Settings Sync (Local + Remote) ===== */
     const SETTINGS_PATH = (uid)=>`auth/settings/${uid}`;
@@ -638,11 +765,8 @@
       const text = (u && u.email) ? u.email : "Belum login";
       if(acctEmail) acctEmail.textContent = text;
       if(menuEmail) menuEmail.textContent = text;
-
       const role = (u && isAuthed()) ? (roleOf(u.uid)||"editor") : "guest";
       if(menuRole) menuRole.textContent = role;
-
-      // Avatar inisial + warna
       const init = (text && text[0] || "?").toUpperCase();
       if(menuAvatar){
         menuAvatar.innerHTML = `<span>${init}</span>`;
@@ -650,37 +774,35 @@
         menuAvatar.style.background = `hsl(${hue} 35% 22%)`;
         menuAvatar.style.borderColor = `hsl(${hue} 35% 30%)`;
       }
-
-      if(topAvatar){
-        const hue = hueHash(text);
-        const init2 = (text && text[0] || "?").toUpperCase();
-        topAvatar.innerHTML = `<span style="font-weight:700">${init2}</span>`;
-        topAvatar.style.background = `hsl(${hue} 35% 22%)`;
-        topAvatar.style.border = "1px solid";
-        topAvatar.style.borderColor = `hsl(${hue} 35% 30%)`;
+      const acctEmailEl = $("#acctEmail");
+      if(acctEmailEl) acctEmailEl.textContent = text;
+      if(typeof pfName !== 'undefined' && pfName) pfName.value = (u && u.displayName) || "";
+      if(typeof pfPreview !== 'undefined' && pfPreview){
+        const p = u && u.photoURL;
+        if(p){ pfPreview.style.background = `center/cover no-repeat url('${p}')`; pfPreview.innerHTML=""; }
+        else { pfPreview.style.background=""; pfPreview.innerHTML = `<span>${init}</span>`; }
       }
-
+    }</span>`;
+        const hue = hueHash(text);
+        menuAvatar.style.background = `hsl(${hue} 35% 22%)`;
+        menuAvatar.style.borderColor = `hsl(${hue} 35% 30%)`;
+      }
     }
 
     /* Auth state */
-    onAuthStateChanged(auth, (user)=>{
-      if(user && isAuthed()){
+    onAuthStateChanged(auth, (user)=>{ if(user){
         startSettingsSync(user.uid);
         updateNav(true); startData();
         setAccountEmail(user);
         route(localStorage.getItem("gx:route") || "dashboard");
-        refreshLocalDbUsage();
-      }else{
-        stopData(); updateNav(false); route("login");
-        setAccountEmail(null);
-        if(user && !isAuthed()){ signOut(auth).catch(()=>{}); toast("Bukan admin"); }
+      } else { stopData(); updateNav(false); route("login"); setAccountEmail(null); ); toast("Bukan admin"); }
       }
       document.body.classList.remove("booting"); $("#boot")?.remove();
     });
     function updateNav(authed){
       document.body.classList.toggle("authed", !!authed);
       document.body.classList.toggle("noauth", !authed);
-      if(topAvatar) topAvatar.classList.toggle("hide", !authed);
+      btnSignOut.classList.toggle("hide", !authed);
       const editable = canEdit();
       btnAdd.disabled = false;
       btnSaveGlobal.disabled = false;
@@ -701,7 +823,7 @@
       catch{ toast("Login gagal"); }
       finally{ btnLogin.disabled=false; btnLogin.textContent="Sign In"; }
     });
-    // legacy signout removed
+    btnSignOut.onclick = async ()=>{ try{ btnSignOut.disabled=true; await signOut(auth); toast("Signed out"); route("login"); }catch{}finally{ btnSignOut.disabled=false; } };
 
     /* Anti salin di luar input */
     const allowCtx=(el)=>!!el&&(el.closest('input,textarea,[contenteditable="true"]'));
@@ -786,25 +908,6 @@
       setBar("perm", s.perm, (s.perm/denom)*100);
     }
 
-    
-    /* === Local DB usage estimation (Option 1) === */
-    function humanBytes(n){
-      const u=["B","KB","MB","GB","TB"]; let i=0, v=Math.max(n||0,0);
-      while(v>=1024 && i<u.length-1){ v/=1024; i++; }
-      return `${v.toFixed(v<10&&i>0?1:0)}${u[i]}`;
-    }
-    function setUsage(elId, barId, val, denom){
-      const el=document.getElementById(elId), bar=document.getElementById(barId);
-      if(el) el.textContent = humanBytes(val);
-      if(bar) bar.style.setProperty("--w", Math.min(100,(val/Math.max(denom,1))*100).toFixed(1)+"%");
-    }
-    async function refreshLocalDbUsage(){
-      try{
-        const snap = await get(ref(db));
-        const size = new Blob([JSON.stringify(snap.val()||{})]).size;
-        setUsage("db-bytes","bar-db", size, 1024*1024); // scale vs 1MB
-      }catch(e){}
-    }
     /* ===== Render list dengan tombol aksi berikon (SVG, tanpa emoji) ===== */
     function iconSVG(name){
       switch(name){
