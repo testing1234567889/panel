@@ -30,6 +30,7 @@
     .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);cursor:pointer;transition:transform .08s ease}
     .btn.ghost{background:transparent}
     .btn.small{padding:10px 12px;min-height:44px;border-radius:12px;font-weight:600}
+    .btn.danger{border-color:#5d2a2a;background:#2a1214}
     .btn:active{transform:translateY(1px)}
     .btn[disabled]{opacity:.6;pointer-events:none}
     .i{width:18px;height:18px;display:inline-block}
@@ -44,6 +45,7 @@
     .avatar span{color:#d7e0ea}
     .avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
     .acct-meta{min-width:0}
+    .acct-meta .name{font-weight:700;word-break:break-word}
     .acct-meta .email{font-weight:600;word-break:break-all}
     .acct-meta .sub{font-size:.82rem;color:var(--muted);display:flex;gap:8px;align-items:center}
     .role{border:1px solid var(--line);border-radius:999px;padding:2px 6px;font-size:.75rem;color:#c8d2dc}
@@ -122,6 +124,7 @@
     <div class="acct-box">
       <div class="avatar" id="menuAvatar"><span>?</span></div>
       <div class="acct-meta">
+        <div class="name" id="menuName">-</div>
         <div class="email" id="menuEmail">Belum login</div>
         <div class="sub"><span id="menuRole" class="role">guest</span></div>
       </div>
@@ -171,7 +174,6 @@
           <input id="globalKey" type="text" placeholder="Kosongkan jika tidak pakai"/>
           <button id="btnSaveGlobal" class="btn small">Simpan</button>
           <button id="btnClearGlobal" class="btn small">Hapus</button>
-          <button id="btnShareGlobal" class="btn small ghost">Share</button>
         </div>
       </div>
 
@@ -223,6 +225,7 @@
           <div><strong>Izinkan seleksi teks</strong></div>
           <label class="switch"><input id="allowSelect" type="checkbox"><span class="track"><i class="thumb"></i></span></label>
         </div>
+        <p class="muted">Catatan: pengaturan disimpan lokal (per perangkat), tidak lagi menulis ke Realtime Database.</p>
       </div>
     </section>
 
@@ -241,6 +244,11 @@
           <button id="btnDeleteAvatar" class="btn small danger">Hapus Avatar</button>
         </div>
         <hr style="border:0;border-top:1px solid var(--line)">
+        <div class="row"><label>Nama tampilan</label><input id="displayName" type="text" placeholder="contoh: GxMods 暁"></div>
+        <div class="row center-row" style="gap:8px;flex-wrap:wrap">
+          <button id="btnSaveProfile" class="btn small">Simpan Profil</button>
+        </div>
+        <hr style="border:0;border-top:1px solid var(--line)">
         <div class="row"><label>Email saat ini</label><input id="currEmail" type="email" disabled></div>
         <div class="row"><label>Email baru</label><input id="newEmail" type="email" placeholder="email baru"></div>
         <div class="row"><label>Password saat ini</label><input id="currPass" type="password" placeholder="wajib untuk update email/password"></div>
@@ -254,7 +262,7 @@
 
     <!-- About -->
     <section class="page" data-page="about">
-      <div class="card"><h3>Tentang Panel</h3><p class="muted">Data sinkron lintas perangkat via Firebase Realtime Database. Admin whitelist multi-role didukung.</p></div>
+      <div class="card"><h3>Tentang Panel</h3><p class="muted">Data sinkron lintas perangkat via Firebase Realtime Database. Admin whitelist multi-role didukung. Pengaturan UI sekarang lokal agar DB kamu rapi.</p></div>
     </section>
 
     <!-- Login -->
@@ -268,7 +276,7 @@
       </div>
     </section>
 
-    <!-- Register -->
+    <!-- Register (halaman boleh tetap ada untuk rencana, tapi tidak dipakai dari UI) -->
     <section class="page login-only" data-page="register">
       <div class="card" style="width:min(92vw,420px);margin-inline:auto">
         <h3 style="text-align:center">Daftar Akun</h3>
@@ -390,24 +398,24 @@
     if(topAvatar) topAvatar.addEventListener("click", ()=>route("profile"));
 
     /* UI refs */
-    const globalKey=$("#globalKey"), btnSaveGlobal=$("#btnSaveGlobal"), btnClearGlobal=$("#btnClearGlobal"), btnShareGlobal=$("#btnShareGlobal");
+    const globalKey=$("#globalKey"), btnSaveGlobal=$("#btnSaveGlobal"), btnClearGlobal=$("#btnClearGlobal");
     const newKey=$("#newKey"), exp=$("#exp"), btnAdd=$("#btnAdd");
     const keyList=$("#keyList"), search=$("#search");
     const sortExpired=$("#sortExpired"), hideGlobal=$("#hideGlobal"), allowSelect=$("#allowSelect"), reduce=$("#reduce");
     const email=$("#email"), password=$("#password"), btnLogin=$("#btnLogin");
     const drawerLogout=$("#drawerLogout");
     const globalKeyCard=$("#globalKeyCard");
-    const acctEmail=$("#acctEmail"), menuEmail=$("#menuEmail"), menuRole=$("#menuRole"), menuAvatar=$("#menuAvatar");
+    const acctEmail=$("#acctEmail"), menuEmail=$("#menuEmail"), menuRole=$("#menuRole"), menuAvatar=$("#menuAvatar"), menuName=$("#menuName");
     // profile refs
     const profileAvatar=$("#profileAvatar"), avatarFile=$("#avatarFile"), btnUploadAvatar=$("#btnUploadAvatar"), btnDeleteAvatar=$("#btnDeleteAvatar");
     const currEmail=$("#currEmail"), currPass=$("#currPass"), newEmail=$("#newEmail"), newPass=$("#newPass");
+    const displayName=$("#displayName"), btnSaveProfile=$("#btnSaveProfile");
     // register refs
     const regEmail=$("#regEmail"), regPass=$("#regPass"), regPass2=$("#regPass2"), btnRegister=$("#btnRegister");
 
     if(drawerLogout) drawerLogout.addEventListener("click",()=>{ signOut(auth).catch(()=>{}); });
 
-    /* ===== Settings Sync ===== */
-    const SETTINGS_PATH=(uid)=>`auth/settings/${uid}`;
+    /* ===== Settings (LOCAL ONLY) ===== */
     function readLocalSettings(){ return { reduce:localStorage.getItem("gx:reduce")==="1", sortExpired:localStorage.getItem("gx:sortExp")==="1", hideGlobal:localStorage.getItem("gx:hideGlobal")==="1", allowSelect:localStorage.getItem("gx:allowSelect")==="1", statusFilter:localStorage.getItem("gx:statusFilter")||"all", updatedAt:parseInt(localStorage.getItem("gx:settingsUpdatedAt")||"0",10)||0 }; }
     function writeLocalSettings(o){ localStorage.setItem("gx:reduce",o.reduce?"1":"0"); localStorage.setItem("gx:sortExp",o.sortExpired?"1":"0"); localStorage.setItem("gx:hideGlobal",o.hideGlobal?"1":"0"); localStorage.setItem("gx:allowSelect",o.allowSelect?"1":"0"); localStorage.setItem("gx:statusFilter",o.statusFilter||"all"); localStorage.setItem("gx:settingsUpdatedAt",String(o.updatedAt||Date.now())); }
     function applySettingsToDOM(o){
@@ -418,22 +426,8 @@
       setFilterChip(o.statusFilter||"all");
     }
     applySettingsToDOM(readLocalSettings());
-    let pushing=false, remoteReady=false;
     function currentSettings(){ return { reduce:!!(reduce&&reduce.checked), sortExpired:!!(sortExpired&&sortExpired.checked), hideGlobal:!!(hideGlobal&&hideGlobal.checked), allowSelect:!!(allowSelect&&allowSelect.checked), statusFilter:getFilter(), updatedAt:Date.now() }; }
-    function pushSettings(uid){ if(!uid) return; const data=currentSettings(); pushing=true; set(dRef(db,SETTINGS_PATH(uid)),data).catch(()=>{}).finally(()=>{pushing=false}); writeLocalSettings(data); }
-    function startSettingsSync(uid){
-      onValue(dRef(db,SETTINGS_PATH(uid)),(s)=>{
-        const remote=s.val()||{}, local=readLocalSettings();
-        const rAt=remote.updatedAt||0, lAt=local.updatedAt||0;
-        if(pushing){ remoteReady=true; return; }
-        if(rAt===0 && lAt>0){ pushSettings(uid); remoteReady=true; return; }
-        if(rAt>lAt){ writeLocalSettings(remote); applySettingsToDOM(remote); }
-        else if(rAt<lAt && remoteReady){ pushSettings(uid); }
-        remoteReady=true;
-      },()=>{/* ignore */});
-    }
-    let syncTimer=null; function scheduleSync(uid){ clearTimeout(syncTimer); syncTimer=setTimeout(()=>pushSettings(uid),250); }
-    [reduce,sortExpired,hideGlobal,allowSelect].forEach(el=>{ if(!el) return; el.addEventListener("change",()=>{ const d=currentSettings(); applySettingsToDOM(d); writeLocalSettings(d); if(isAuthed()) scheduleSync(auth.currentUser.uid); if(el===sortExpired) render(); }); });
+    [reduce,sortExpired,hideGlobal,allowSelect].forEach(el=>{ if(!el) return; el.addEventListener("change",()=>{ const d=currentSettings(); applySettingsToDOM(d); writeLocalSettings(d); if(el===sortExpired) render(); }); });
 
     /* ===== Data ===== */
     let cache={}; let selfWriteAt=0; let unsubs=[];
@@ -484,6 +478,21 @@
       }
 
       if(currEmail) currEmail.value=u?.email||"";
+      if(menuName) menuName.textContent = u ? (menuName.textContent||"(tanpa nama)") : "-";
+    }
+
+    /* ===== Profile name sync (RTDB) ===== */
+    const PROFILE_PATH=(uid)=>`auth/profiles/${uid}`;
+    let unwatchProfile=null;
+    function watchProfile(uid){
+      if(unwatchProfile) try{ unwatchProfile(); }catch{}
+      unwatchProfile = onValue(dRef(db, PROFILE_PATH(uid)), (s)=>{
+        const p=s.val()||{};
+        if(menuName) menuName.textContent = p.name || "(tanpa nama)";
+        if(displayName) displayName.value = p.name || "";
+      }, ()=>{
+        if(menuName) menuName.textContent="(tanpa nama)";
+      });
     }
 
     /* ===== Auth state ===== */
@@ -491,12 +500,11 @@
     onAuthStateChanged(auth,(user)=>{
       try{
         if(user && isAuthed()){
-          startSettingsSync(user.uid);
-          updateNav(true); startData(); setAccountVisual(user);
+          updateNav(true); startData(); setAccountVisual(user); watchProfile(user.uid);
           route(localStorage.getItem("gx:route")||"dashboard"); refreshLocalDbUsage();
         }else{
           stopData(); updateNav(false); route("login"); setAccountVisual(null);
-          if(user && !isAuthed()){ signOut(auth).catch(()=>{}); toast("Bukan admin"); }
+          if(unwatchProfile) try{ unwatchProfile(); }catch{}; if(user && !isAuthed()){ signOut(auth).catch(()=>{}); toast("Bukan admin"); }
         }
       }finally{
         document.body.classList.remove("booting");
@@ -512,7 +520,6 @@
       if(btnAdd) btnAdd.disabled=!editable;
       if(btnSaveGlobal) btnSaveGlobal.disabled=!editable;
       if(btnClearGlobal) btnClearGlobal.disabled=!editable;
-      if(btnShareGlobal) btnShareGlobal.disabled=!editable;
     }
 
     /* ===== Login & Register ===== */
@@ -526,7 +533,6 @@
       catch(e){ toast("Login gagal"); }
       finally{ btnLogin.disabled=false; btnLogin.textContent="Sign In"; }
     });
-    // Link ke Register dari Login dihapus (tombolnya sudah dihapus di HTML)
     $("#toLogin")?.addEventListener("click",(e)=>{ e.preventDefault(); route("login"); });
     if(btnRegister) btnRegister.addEventListener("click", async ()=>{
       const em=(regEmail?.value||"").trim(), p1=regPass?.value||"", p2=regPass2?.value||"";
@@ -572,6 +578,16 @@
       finally{ btnDeleteAvatar.disabled=false; }
     });
 
+    /* ===== Profile: name save ===== */
+    if(btnSaveProfile) btnSaveProfile.addEventListener("click", async ()=>{
+      const u=auth.currentUser; if(!u){ toast("Belum login"); return; }
+      const name=(displayName?.value||"").trim();
+      try{
+        await update(dRef(db, PROFILE_PATH(u.uid)), { name, updatedAt: Date.now() });
+        toast("Nama disimpan");
+      }catch(e){ toast("Gagal simpan nama"); }
+    });
+
     /* ===== Profile: email & password ===== */
     async function doReauth(){
       const u=auth.currentUser; if(!u){ toast("Belum login"); return false; }
@@ -604,7 +620,7 @@
 
     function getFilter(){ return localStorage.getItem("gx:statusFilter")||"all"; }
     function setFilterChip(val){ localStorage.setItem("gx:statusFilter",val); $$(".chip.filter").forEach(c=>c.classList.toggle("active",c.dataset.filter===val)); }
-    document.addEventListener("click",(e)=>{ const f=e.target.closest(".chip.filter"); if(!f) return; const val=f.dataset.filter; setFilterChip(val); render(); if(isAuthed()) scheduleSync(auth.currentUser.uid); });
+    document.addEventListener("click",(e)=>{ const f=e.target.closest(".chip.filter"); if(!f) return; const val=f.dataset.filter; setFilterChip(val); render(); });
 
     function calcStats(){ const ks=Object.keys(cache||{}); const now=Date.now(); let total=ks.length,perm=0,expired=0,active=0; for(const k of ks){ const e=cache[k]?.exp||0; if(e===0){perm++;continue;} if(now>e){expired++;}else{active++;} } return {total,active,expired,perm}; }
     function setBar(id,val,pct){ const valEl=document.getElementById("st-"+id); const barEl=document.getElementById("bar-"+id); if(valEl) valEl.textContent=String(val); if(barEl) barEl.style.setProperty("--w",(pct||0).toFixed(1)+"%"); }
@@ -632,8 +648,8 @@
         const sub=document.createElement("div"); sub.className="row2 muted"; sub.textContent="Expire: "+fmtDate(expMs);
         const actions=document.createElement("div"); actions.className="row3";
         const mk=(label,action,extraClass="")=>{ const b=document.createElement("button"); b.className="btn small"+(extraClass?(" "+extraClass):""); b.dataset.key=k; b.dataset.action=action; b.textContent=label; return b; };
-        const btnNoExp=mk("No Exp","noexp"); const btnDate=mk("Tanggal…","setdate"); const btnShare=mk("Share","share"); const del=mk("Hapus","del","danger");
-        actions.appendChild(btnNoExp); actions.appendChild(btnDate); actions.appendChild(btnShare); actions.appendChild(del);
+        const btnNoExp=mk("No Exp","noexp"); const btnDate=mk("Tanggal…","setdate"); const del=mk("Hapus","del","danger");
+        actions.appendChild(btnNoExp); actions.appendChild(btnDate); actions.appendChild(del);
         row.appendChild(head); row.appendChild(sub); row.appendChild(actions); frag.appendChild(row);
       }
       if(!frag.childNodes.length){ const empty=document.createElement("div"); empty.className="item"; empty.innerHTML='<span class="muted">Tidak ada hasil.</span>'; frag.appendChild(empty); }
@@ -646,7 +662,6 @@
       const k=b.dataset.key,act=b.dataset.action;
       (async()=>{ try{
         if(act==="copy"){ await navigator.clipboard.writeText(k); toast("Disalin"); }
-        else if(act==="share"){ const text=`KEY: ${k}`; if(navigator.share){ try{ await navigator.share({title:"GxMods Key",text}); }catch{} } else { await navigator.clipboard.writeText(text); toast("Disalin (share tidak didukung)"); } }
         else if(act==="noexp"){ selfWriteAt=Date.now(); await update(dRef(db,"auth/keys/"+k),{exp:0}); toast("No Exp"); }
         else if(act==="setdate"){ openModalSetDate(k,cache[k]?.exp||0); }
         else if(act==="del"){ const ok=await confirmDialog(`Hapus key: ${k}?`); if(!ok) return; selfWriteAt=Date.now(); await remove(dRef(db,"auth/keys/"+k)); toast("Dihapus"); }
@@ -665,7 +680,6 @@
     };
     if(btnSaveGlobal) btnSaveGlobal.onclick=async ()=>{ selfWriteAt=Date.now(); await set(dRef(db,"auth/globalKey"),(globalKey?.value||"").trim()); toast("Global key disimpan"); };
     if(btnClearGlobal) btnClearGlobal.onclick=async ()=>{ selfWriteAt=Date.now(); await set(dRef(db,"auth/globalKey"),""); if(globalKey) globalKey.value=""; toast("Dikosongkan"); };
-    if(btnShareGlobal) btnShareGlobal.onclick=async ()=>{ const v=(globalKey?.value||"").trim(); if(!v){ toast("Global key kosong"); return; } const text="GLOBAL KEY: "+v; if(navigator.share){ try{ await navigator.share({title:"GxMods Global Key",text}); }catch{} } else { await navigator.clipboard.writeText(text); toast("Disalin (share tidak didukung)"); } };
 
     /* Modal tanggal */
     const modalDateWrap=$("#modalDateWrap"), modalDate=$("#modalDate"), modalSave=$("#modalSave"), modalCancel=$("#modalCancel");
