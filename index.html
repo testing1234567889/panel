@@ -40,8 +40,9 @@
     .brand .logo{width:34px;height:34px;border-radius:12px;background:linear-gradient(135deg,#7c3aed 0%,#19c37d 100%);display:grid;place-items:center;font-weight:800}
     .brand .logo span{font-size:.95rem;color:white;letter-spacing:.2px}
     .acct-box{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
-    .avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:#243044;border:1px solid #2f3d52}
+    .avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:#243044;border:1px solid #2f3d52;overflow:hidden}
     .avatar span{color:#d7e0ea}
+    .avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
     .acct-meta{min-width:0}
     .acct-meta .email{font-weight:600;word-break:break-all}
     .acct-meta .sub{font-size:.82rem;color:var(--muted);display:flex;gap:8px;align-items:center}
@@ -56,7 +57,7 @@
     .backdrop.show{opacity:1;pointer-events:auto}
     .drawer-footer{padding:12px 14px;border-top:1px solid var(--line);font-size:.92rem;color:var(--muted);display:flex;justify-content:flex-start;align-items:center}
     .app{min-height:calc(100dvh - 56px);padding:14px 14px calc(14px + var(--bn-h) + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px}
-    body.noauth .app{padding-bottom:14px}
+    body.noauth .app{min-height:100dvh;display:grid;place-items:center;padding:14px}
     .page{display:none}
     .page.show{display:grid;gap:16px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px;display:flex;flex-direction:column;gap:12px}
@@ -74,7 +75,7 @@
     .pill{padding:3px 8px;border-radius:999px;border:1px solid var(--line);font-size:.8rem;white-space:nowrap}
     .ok{background:#10221a;border-color:#1f4e39;color:#9de7c4}
     .soon{background:#2b220c;border-color:#5a4310;color:#ffe5a3}
-    .exp{background:#2a1414;border-color:#5d2a2a;color:#ffc8c8}
+    .exp{background:#2a1214;border-color:#5d2a2a;color:#ffc8c8}
     .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--card);cursor:pointer;user-select:none}
     .chip.active{outline:2px solid #213048}
     .switch{display:inline-flex;align-items:center;gap:10px}
@@ -98,20 +99,13 @@
     .modal.show{display:flex}
     .modal-card{width:min(92vw,420px);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
     .modal-actions{display:flex;gap:10px;justify-content:flex-end}
-    .bar{height:10px;border-radius:999px;background:color-mix(in oklab, var(--card), black 8%);overflow:hidden;border:1px solid var(--line)}
-    .bar > i{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#22c55e)}
-    .mini{display:flex;flex-direction:column;gap:10px}
-    .mini-row{display:flex;align-items:center;gap:10px}
-    .mini-label{min-width:110px;color:var(--muted)}
-    .mini-val{min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
-    .mini-bar{flex:1;height:8px;border-radius:999px;background:color-mix(in oklab, var(--card), black 8%);border:1px solid var(--line);overflow:hidden}
-    .mini-bar>i{display:block;height:100%;width:var(--w,0%);background:linear-gradient(90deg,#7c3aed,#19c37d)}
-    .mini-legend{display:flex;gap:10px;flex-wrap:wrap}
-    .mini-legend .pill{font-size:.78rem}
-    .btn.danger{background:#2a1212;border-color:#5d2a2a}
+    .avatar-xl{width:92px;height:92px;border-radius:50%;overflow:hidden;border:2px solid #2f3d52;background:#243044;display:grid;place-items:center}
+    .avatar-xl img{width:100%;height:100%;object-fit:cover}
+    .center-row{display:flex;justify-content:center}
   </style>
 </head>
 <body class="noauth booting">
+  <!-- Topbar -->
   <header class="topbar">
     <button id="menuBtn" class="btn" aria-label="Menu" aria-haspopup="true" aria-controls="drawer" aria-expanded="false">
       <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -122,14 +116,22 @@
     <button id="topAvatar" class="avatar btn ghost" aria-label="Akun" style="padding:0;width:36px;height:36px;border-radius:999px"><span>?</span></button>
   </header>
 
+  <!-- Drawer -->
   <aside id="drawer" class="drawer" aria-hidden="true" tabindex="-1">
     <div class="brand"><div class="logo"><span>Gx</span></div><div style="font-weight:700">Panel</div></div>
     <div class="acct-box">
       <div class="avatar" id="menuAvatar"><span>?</span></div>
-      <div class="acct-meta"><div class="email" id="menuEmail">Belum login</div><div class="sub"><span id="menuRole" class="role">guest</span></div></div>
+      <div class="acct-meta">
+        <div class="email" id="menuEmail">Belum login</div>
+        <div class="sub"><span id="menuRole" class="role">guest</span></div>
+      </div>
     </div>
     <div class="nav-title">Navigasi</div>
     <nav class="nav" id="nav">
+      <a href="#profile" data-route="profile" data-auth="in">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20a6 6 0 1 1 12 0"/></svg>
+        <span>Profil</span>
+      </a>
       <a href="#settings" data-route="settings" data-auth="in">
         <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0A1.65 1.65 0 0 0 9 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0A1.65 1.65 0 0 0 21 12h0a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
         <span>Pengaturan</span>
@@ -140,12 +142,14 @@
       </a>
     </nav>
     <div class="drawer-footer" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <span id="appVersion">v0.0.1 beta</span><button id="drawerLogout" class="btn small">Keluar</button>
+      <span id="appVersion">v0.0.2</span><button id="drawerLogout" class="btn small">Keluar</button>
     </div>
   </aside>
   <div id="backdrop" class="backdrop"></div>
 
+  <!-- App -->
   <main id="app" class="app">
+    <!-- Home -->
     <section class="page guarded" data-page="dashboard">
       <div class="card">
         <h3>Ringkasan</h3>
@@ -159,33 +163,25 @@
       </div>
     </section>
 
+    <!-- Keys -->
     <section class="page guarded" data-page="keys">
       <div class="card" id="globalKeyCard">
         <h3>Global Key</h3>
         <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
           <input id="globalKey" type="text" placeholder="Kosongkan jika tidak pakai"/>
-          <button id="btnSaveGlobal" class="btn small"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v4h8"/></svg>Simpan</button>
-          <button id="btnClearGlobal" class="btn small"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4h8v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>Hapus</button>
-          <button id="btnShareGlobal" class="btn small ghost"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h7"/><path d="M20 12V5a1 1 0 0 0-1-1h-7"/><path d="M5 12 20 3"/><path d="m5 12 15 9"/></svg>Share</button>
+          <button id="btnSaveGlobal" class="btn small">Simpan</button>
+          <button id="btnClearGlobal" class="btn small">Hapus</button>
+          <button id="btnShareGlobal" class="btn small ghost">Share</button>
         </div>
       </div>
 
       <div class="card" id="createKeyCard" style="position:relative">
         <h3 style="text-align:center">Buat Key</h3>
-        <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center">
-          <input id="newKey" type="text" placeholder="Key baru (contoh: vip-xxxx-1234)" style="flex:1;min-width:220px;max-width:560px" autocomplete="off" />
-        </div>
-        <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center">
-          <label class="muted" for="exp">Tanggal kadaluarsa (opsional)</label>
-          <input id="exp" type="date" inputmode="none" placeholder="dd-mm-yyyy" style="max-width:220px"/>
-        </div>
-        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center">
-          <span class="chip" data-add="7">+7 hari</span>
-          <span class="chip" data-add="0">Tanpa Exp</span>
-        </div>
-        <div class="row" style="display:flex;justify-content:center">
-          <button id="btnAdd" class="btn small"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Tambah</button>
-        </div>
+        <div class="row center-row"><input id="newKey" type="text" placeholder="Key baru (contoh: vip-xxxx-1234)" style="flex:1;min-width:220px;max-width:560px" autocomplete="off" /></div>
+        <div class="row center-row"><label class="muted" for="exp">Tanggal kadaluarsa (opsional)</label></div>
+        <div class="row center-row"><input id="exp" type="date" inputmode="none" placeholder="dd-mm-yyyy" style="max-width:220px"/></div>
+        <div class="row center-row" style="gap:8px;flex-wrap:wrap"><span class="chip" data-add="7">+7 hari</span><span class="chip" data-add="0">Tanpa Exp</span></div>
+        <div class="row center-row"><button id="btnAdd" class="btn small">Tambah</button></div>
       </div>
 
       <div class="card">
@@ -204,6 +200,7 @@
       </div>
     </section>
 
+    <!-- Settings -->
     <section class="page guarded" data-page="settings">
       <div class="card">
         <div class="row" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -229,18 +226,57 @@
       </div>
     </section>
 
+    <!-- Profile -->
+    <section class="page guarded" data-page="profile">
+      <div class="card" style="max-width:720px;margin-inline:auto">
+        <h3>Profil Admin</h3>
+        <div class="row center-row">
+          <div class="avatar-xl" id="profileAvatar"><span>?</span></div>
+        </div>
+        <div class="row center-row">
+          <input id="avatarFile" type="file" accept="image/*" style="max-width:320px">
+        </div>
+        <div class="row center-row" style="gap:8px;flex-wrap:wrap">
+          <button id="btnUploadAvatar" class="btn small">Upload Avatar</button>
+          <button id="btnDeleteAvatar" class="btn small danger">Hapus Avatar</button>
+        </div>
+        <hr style="border:0;border-top:1px solid var(--line)">
+        <div class="row"><label>Email saat ini</label><input id="currEmail" type="email" disabled></div>
+        <div class="row"><label>Email baru</label><input id="newEmail" type="email" placeholder="email baru"></div>
+        <div class="row"><label>Password saat ini</label><input id="currPass" type="password" placeholder="wajib untuk update email/password"></div>
+        <div class="row"><label>Password baru</label><input id="newPass" type="password" placeholder="min 6 karakter"></div>
+        <div class="row center-row" style="gap:8px;flex-wrap:wrap">
+          <button id="btnUpdateEmail" class="btn small">Ubah Email</button>
+          <button id="btnUpdatePass" class="btn small">Ubah Password</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- About -->
     <section class="page" data-page="about">
       <div class="card"><h3>Tentang Panel</h3><p class="muted">Data sinkron lintas perangkat via Firebase Realtime Database. Admin whitelist multi-role didukung.</p></div>
     </section>
 
+    <!-- Login -->
     <section class="page login-only" data-page="login">
-      <div class="card" style="max-width:480px;margin-inline:auto">
-        <h3>Login Admin</h3>
-        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><input id="email" type="email" placeholder="Email" autocomplete="username"></div>
-        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
-          <div style="position:relative;width:100%"><input id="password" type="password" placeholder="Password" autocomplete="current-password"><button id="togglePass" class="btn small" style="position:absolute;right:6px;top:6px">Lihat</button></div>
-        </div>
-        <div class="row" style="display:flex;justify-content:center"><button id="btnLogin" class="btn">Sign In</button></div>
+      <div class="card" style="width:min(92vw,420px);margin-inline:auto">
+        <h3 style="text-align:center">Login Admin</h3>
+        <div class="row"><input id="email" type="email" placeholder="Email" autocomplete="username"></div>
+        <div class="row"><div style="position:relative;width:100%"><input id="password" type="password" placeholder="Password" autocomplete="current-password"><button id="togglePass" class="btn small" style="position:absolute;right:6px;top:6px">Lihat</button></div></div>
+        <div class="row center-row"><button id="btnLogin" class="btn">Sign In</button></div>
+        <div class="row center-row"><a href="#register" id="toRegister" class="btn ghost small">Daftar akun</a></div>
+      </div>
+    </section>
+
+    <!-- Register -->
+    <section class="page login-only" data-page="register">
+      <div class="card" style="width:min(92vw,420px);margin-inline:auto">
+        <h3 style="text-align:center">Daftar Akun</h3>
+        <div class="row"><input id="regEmail" type="email" placeholder="Email" autocomplete="username"></div>
+        <div class="row"><input id="regPass" type="password" placeholder="Password (min 6)" autocomplete="new-password"></div>
+        <div class="row"><input id="regPass2" type="password" placeholder="Ulangi password" autocomplete="new-password"></div>
+        <div class="row center-row" style="gap:8px"><button id="btnRegister" class="btn">Daftar</button><a href="#login" id="toLogin" class="btn ghost small">Sudah punya akun</a></div>
+        <p class="muted">Catatan: hanya UID yang terdaftar sebagai admin yang bisa mengelola key.</p>
       </div>
     </section>
   </main>
@@ -253,6 +289,7 @@
   <div id="boot"><span class="muted">Memuat…</span></div>
   <div id="toast"></div>
 
+  <!-- Modals -->
   <div id="modalDateWrap" class="modal" aria-hidden="true">
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <h3 id="modalTitle">Set Tanggal Kadaluarsa</h3>
@@ -272,33 +309,37 @@
 
   <script type="module">
     /* ===== Versi ===== */
-    const APP_VERSION="v0.0.1 beta";
-    document.addEventListener("DOMContentLoaded",()=>{ const v=document.getElementById("appVersion"); if(v) v.textContent=APP_VERSION; });
+    const APP_VERSION="v0.0.2";
 
-    /* ===== Firebase ===== */
-    // Whitelist lokal: 3 UID (dua dari kamu + satu dari file awal)
-    const ADMIN_UIDS=["dqFIuPQY1PfYvcLdkrxztZEDkkl1","nIGjiue818WwLCjEsSUZX3OLtan1","4CCiNyEyTvSUPnY6Ugd9PzAU1df2"];
+    /* ===== Firebase (project: aplikasi-percobaan-dbf84) ===== */
     const firebaseConfig={
-      apiKey:"AIzaSyAJ2YitGgxTI8k440TmWUHgntkTLSqkX3c",
-      authDomain:"dialog-vip-only-key.firebaseapp.com",
-      databaseURL:"https://dialog-vip-only-key-default-rtdb.firebaseio.com",
-      projectId:"dialog-vip-only-key",
-      storageBucket:"dialog-vip-only-key.firebasestorage.app",
-      messagingSenderId:"405714783893",
-      appId:"1:405714783893:web:9cf697f2104b91958ed59c",
-      measurementId:"G-YKCTBR2857"
+      apiKey:"AIzaSyAu--L2T5_o9xLVT09mXFLIcpPuLLWlL1Q",
+      authDomain:"aplikasi-percobaan-dbf84.firebaseapp.com",
+      databaseURL:"https://aplikasi-percobaan-dbf84-default-rtdb.firebaseio.com",
+      projectId:"aplikasi-percobaan-dbf84",
+      storageBucket:"aplikasi-percobaan-dbf84.appspot.com",
+      messagingSenderId:"52109851315",
+      appId:"1:52109851315:web:ba255b74b4ce0500774ec6",
+      measurementId:"G-H6WCVTQQEM"
     };
 
+    // Owner + admin UID (local allowlist fallback; tetap pakai RTDB roles)
+    const OWNER_UID="dqFIuPQY1PfYvcLdkrxztZEDkkl1";
+    const ADMIN_UID="nIGjiue818WwLCjEsSUZX3OLtan1";
+    const LOCAL_ADMINS=[OWNER_UID, ADMIN_UID];
+
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-    import { getDatabase, ref, onValue, set, update, remove, off, get } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, createUserWithEmailAndPassword, updateEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+    import { getDatabase, ref as dRef, onValue, set, update, remove, off, get } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+    import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
 
     const app=initializeApp(firebaseConfig);
     const auth=getAuth(app);
     setPersistence(auth,browserLocalPersistence).catch(()=>{});
     const db=getDatabase(app);
+    const storage=getStorage(app);
 
-    /* ===== Utils ===== */
+    /* ===== Shortcuts & helpers ===== */
     const $=(s,el=document)=>el.querySelector(s);
     const $$=(s,el=document)=>el.querySelectorAll(s);
     const toastEl=$("#toast"); let toastTimer=null;
@@ -306,40 +347,27 @@
     const fmtDate=(ms)=>ms?new Date(ms).toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"}):"Permanen";
     const toEOD=(Y,M,D)=>new Date(Y,M-1,D,23,59,59,999).getTime();
     const fromInputDate=(v)=>{const [Y,M,D]=v.split("-").map(n=>parseInt(n,10));return {Y,M,D};};
-    const sanitizeKey=(k)=>(k||"").normalize("NFKC").replace(/\s+/g,"").replace(/[^\w\-.:@]/g,"");
-    const protectedRoutes=new Set(["dashboard","keys","settings"]);
+    const sanitizeKey=(k)=>(k||"").normalize("NFKC").replace(/\\s+/g,"").replace([^\\w\\-.:@]/g,""); // will be overridden below by a safer version
 
-    /* ===== Drawer (null-safe) ===== */
-    const menuBtn=$("#menuBtn");
-    const drawer=$("#drawer");
-    const backdrop=$("#backdrop");
-    if(drawer){ drawer.setAttribute("aria-hidden","true"); try{ drawer.inert=true; }catch{} }
-    function openDrawer(){
-      if(!drawer||!backdrop||!menuBtn) return;
-      drawer.classList.add("open"); backdrop.classList.add("show");
-      drawer.removeAttribute("aria-hidden"); try{ drawer.inert=false; }catch{}
-      menuBtn.setAttribute("aria-expanded","true");
-      const first=drawer.querySelector(".nav a")||drawer; (first instanceof HTMLElement?first:drawer).focus();
-    }
-    function closeDrawer(){
-      if(!drawer||!backdrop||!menuBtn) return;
-      if(drawer.contains(document.activeElement)) menuBtn.focus();
-      drawer.classList.remove("open"); backdrop.classList.remove("show");
-      drawer.setAttribute("aria-hidden","true"); try{ drawer.inert=true; }catch{}
-      menuBtn.setAttribute("aria-expanded","false");
-    }
+    // safer sanitize
+    function sanitize(k){ return (k||"").normalize("NFKC").replace(/\\s+/g,"").replace(/[^\\w\\-.:@]/g,""); }
+    /* Drawer & routing */
+    const protectedRoutes=new Set(["dashboard","keys","settings","profile"]);
+    const menuBtn=$("#menuBtn"), drawer=$("#drawer"), backdrop=$("#backdrop");
+    if(drawer){ drawer.setAttribute("aria-hidden","true"); try{drawer.inert=true;}catch{} }
+    function openDrawer(){ if(!drawer||!backdrop||!menuBtn) return; drawer.classList.add("open"); backdrop.classList.add("show"); drawer.removeAttribute("aria-hidden"); try{drawer.inert=false;}catch{}; menuBtn.setAttribute("aria-expanded","true"); const first=drawer.querySelector(".nav a")||drawer; (first instanceof HTMLElement?first:drawer).focus(); }
+    function closeDrawer(){ if(!drawer||!backdrop||!menuBtn) return; if(drawer.contains(document.activeElement)) menuBtn.focus(); drawer.classList.remove("open"); backdrop.classList.remove("show"); drawer.setAttribute("aria-hidden","true"); try{drawer.inert=true;}catch{}; menuBtn.setAttribute("aria-expanded","false"); }
     if(menuBtn) menuBtn.onclick=openDrawer;
     if(backdrop) backdrop.onclick=closeDrawer;
-    document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"&&drawer&&drawer.classList.contains("open")){ e.preventDefault(); closeDrawer(); }});
+    document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"&&drawer?.classList.contains("open")){ e.preventDefault(); closeDrawer(); }});
 
-    /* ===== Multi-admin (RTDB) ===== */
     let ADMINS={};
-    onValue(ref(db,"auth/admins"), s=>{ ADMINS=s.val()||{}; try{ updateNav(isAuthed()); }catch{} try{ render(); }catch{} });
-    const isAuthed=()=>{ const u=auth.currentUser; return !!u && (ADMIN_UIDS.includes(u.uid) || !!ADMINS[u.uid]); };
-    const roleOf=(uid)=> ADMIN_UIDS.includes(uid) ? "owner" : (ADMINS?.[uid]===true?"owner":(ADMINS?.[uid]||null));
+    onValue(dRef(db,"auth/admins"), s=>{ ADMINS=s.val()||{}; try{ updateNav(isAuthed()); }catch{} try{ render(); }catch{} });
+
+    const isAuthed=()=>{ const u=auth.currentUser; return !!u && (LOCAL_ADMINS.includes(u.uid)|| !!ADMINS[u.uid]); };
+    const roleOf=(uid)=> LOCAL_ADMINS.includes(uid) ? "owner" : (ADMINS?.[uid]===true?"owner":(ADMINS?.[uid]||null));
     const canEdit=()=>{ const u=auth.currentUser; if(!u) return false; const r=roleOf(u.uid); return !!r && r!=="viewer"; };
 
-    /* ===== Routing ===== */
     function hardGuard(name){ return protectedRoutes.has(name)&&!isAuthed() ? "login" : name; }
     function updateBottomNav(name){ $$("#bottomnav a").forEach(a=>{ const active=a.dataset.route===name; a.classList.toggle("active",active); a.setAttribute("aria-current",active?"page":"false"); }); }
     function route(name){
@@ -354,16 +382,25 @@
     $$(".nav a").forEach(a=>a.onclick=(e)=>{ e.preventDefault(); route(a.dataset.route); });
     $$("#bottomnav a").forEach(a=>a.addEventListener("click",(e)=>{ e.preventDefault(); route(a.dataset.route); },{passive:false}));
 
-    /* ===== UI refs ===== */
+    // top avatar -> profile
+    const topAvatar=$("#topAvatar");
+    if(topAvatar) topAvatar.addEventListener("click", ()=>route("profile"));
+
+    /* UI refs */
     const globalKey=$("#globalKey"), btnSaveGlobal=$("#btnSaveGlobal"), btnClearGlobal=$("#btnClearGlobal"), btnShareGlobal=$("#btnShareGlobal");
     const newKey=$("#newKey"), exp=$("#exp"), btnAdd=$("#btnAdd");
     const keyList=$("#keyList"), search=$("#search");
     const sortExpired=$("#sortExpired"), hideGlobal=$("#hideGlobal"), allowSelect=$("#allowSelect"), reduce=$("#reduce");
     const email=$("#email"), password=$("#password"), btnLogin=$("#btnLogin");
-    const topAvatar=$("#topAvatar"), drawerLogout=$("#drawerLogout");
+    const drawerLogout=$("#drawerLogout");
     const globalKeyCard=$("#globalKeyCard");
     const acctEmail=$("#acctEmail"), menuEmail=$("#menuEmail"), menuRole=$("#menuRole"), menuAvatar=$("#menuAvatar");
-    if(topAvatar) topAvatar.addEventListener("click",openDrawer);
+    // profile refs
+    const profileAvatar=$("#profileAvatar"), avatarFile=$("#avatarFile"), btnUploadAvatar=$("#btnUploadAvatar"), btnDeleteAvatar=$("#btnDeleteAvatar");
+    const currEmail=$("#currEmail"), currPass=$("#currPass"), newEmail=$("#newEmail"), newPass=$("#newPass");
+    // register refs
+    const regEmail=$("#regEmail"), regPass=$("#regPass"), regPass2=$("#regPass2"), btnRegister=$("#btnRegister");
+
     if(drawerLogout) drawerLogout.addEventListener("click",()=>{ signOut(auth).catch(()=>{}); });
 
     /* ===== Settings Sync ===== */
@@ -380,9 +417,9 @@
     applySettingsToDOM(readLocalSettings());
     let pushing=false, remoteReady=false;
     function currentSettings(){ return { reduce:!!(reduce&&reduce.checked), sortExpired:!!(sortExpired&&sortExpired.checked), hideGlobal:!!(hideGlobal&&hideGlobal.checked), allowSelect:!!(allowSelect&&allowSelect.checked), statusFilter:getFilter(), updatedAt:Date.now() }; }
-    function pushSettings(uid){ if(!uid) return; const data=currentSettings(); pushing=true; set(ref(db,SETTINGS_PATH(uid)),data).catch(()=>{}).finally(()=>{pushing=false}); writeLocalSettings(data); }
+    function pushSettings(uid){ if(!uid) return; const data=currentSettings(); pushing=true; set(dRef(db,SETTINGS_PATH(uid)),data).catch(()=>{}).finally(()=>{pushing=false}); writeLocalSettings(data); }
     function startSettingsSync(uid){
-      onValue(ref(db,SETTINGS_PATH(uid)),(s)=>{
+      onValue(dRef(db,SETTINGS_PATH(uid)),(s)=>{
         const remote=s.val()||{}, local=readLocalSettings();
         const rAt=remote.updatedAt||0, lAt=local.updatedAt||0;
         if(pushing){ remoteReady=true; return; }
@@ -399,36 +436,61 @@
     let cache={}; let selfWriteAt=0;
     function startData(){
       stopData();
-      onValue(ref(db,"auth/globalKey"), s=>{ if(globalKey) globalKey.value = s.exists()? (s.val()||"") : ""; });
-      onValue(ref(db,"auth/keys"), s=>{
+      onValue(dRef(db,"auth/globalKey"), s=>{ if(globalKey) globalKey.value = s.exists()? (s.val()||"") : ""; });
+      onValue(dRef(db,"auth/keys"), s=>{
         const v=s.val()||{}; const serialized=JSON.stringify(v);
         if(JSON.stringify(cache)!==serialized){ cache=v; try{ localStorage.setItem("gx:cacheKeys",serialized); }catch{} render(); if(Date.now()-selfWriteAt>1200) toast("Data diperbarui"); }
       });
     }
-    function stopData(){ try{ off(ref(db,"auth/globalKey")); off(ref(db,"auth/keys")); }catch{} }
+    function stopData(){ try{ off(dRef(db,"auth/globalKey")); off(dRef(db,"auth/keys")); }catch{} }
     try{ const c=localStorage.getItem("gx:cacheKeys"); if(c){ cache=JSON.parse(c); render(); } }catch{}
 
-    /* ===== Email + Avatar + Role ===== */
+    /* ===== Account visual ===== */
     function hueHash(str){ let h=0; for(let i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))>>>0; } return h%360; }
-    function setAccountEmail(u){
+    function setAccountVisual(u){
       const text=(u&&u.email)?u.email:"Belum login";
       if(acctEmail) acctEmail.textContent=text;
       if(menuEmail) menuEmail.textContent=text;
       const role=(u&&isAuthed())?(roleOf(u.uid)||"editor"):"guest";
       if(menuRole) menuRole.textContent=role;
+
       const init=(text&&text[0]||"?").toUpperCase();
-      if(menuAvatar){ menuAvatar.innerHTML=`<span>${init}</span>`; const hue=hueHash(text); menuAvatar.style.background=`hsl(${hue} 35% 22%)`; menuAvatar.style.borderColor=`hsl(${hue} 35% 30%)`; }
-      if(topAvatar){ const hue=hueHash(text); const init2=(text&&text[0]||"?").toUpperCase(); topAvatar.innerHTML=`<span style="font-weight:700">${init2}</span>`; topAvatar.style.background=`hsl(${hue} 35% 22%)`; topAvatar.style.border="1px solid"; topAvatar.style.borderColor=`hsl(${hue} 35% 30%)`; }
+      const hue=hueHash(text);
+      const colorBG=`hsl(${hue} 35% 22%)`, colorBD=`hsl(${hue} 35% 30%)`;
+
+      function putAvatar(el, url){
+        if(!el) return;
+        el.innerHTML="";
+        if(url){
+          const img=document.createElement("img"); img.src=url; el.appendChild(img);
+        }else{
+          const span=document.createElement("span"); span.textContent=init; el.appendChild(span);
+        }
+        el.style.background=colorBG; el.style.borderColor=colorBD;
+      }
+
+      // Try load avatar from Storage
+      if(u){
+        getDownloadURL(sRef(storage, `profile/${u.uid}.jpg`)).then(url=>{
+          putAvatar(menuAvatar, url); putAvatar(topAvatar, url); putAvatar(profileAvatar, url);
+        }).catch(()=>{
+          putAvatar(menuAvatar, null); putAvatar(topAvatar, null); putAvatar(profileAvatar, null);
+        });
+      }else{
+        putAvatar(menuAvatar, null); putAvatar(topAvatar, null); putAvatar(profileAvatar, null);
+      }
+
+      if(currEmail) currEmail.value=u?.email||"";
     }
 
-    /* ===== Auth ===== */
+    /* ===== Auth state ===== */
     onAuthStateChanged(auth,(user)=>{
       if(user && isAuthed()){
         startSettingsSync(user.uid);
-        updateNav(true); startData(); setAccountEmail(user);
+        updateNav(true); startData(); setAccountVisual(user);
         route(localStorage.getItem("gx:route")||"dashboard"); refreshLocalDbUsage();
       }else{
-        stopData(); updateNav(false); route("login"); setAccountEmail(null);
+        stopData(); updateNav(false); route("login"); setAccountVisual(null);
         if(user && !isAuthed()){ signOut(auth).catch(()=>{}); toast("Bukan admin"); }
       }
       document.body.classList.remove("booting"); document.getElementById("boot")?.remove();
@@ -442,53 +504,106 @@
       if(btnSaveGlobal) btnSaveGlobal.disabled=!editable;
       if(btnClearGlobal) btnClearGlobal.disabled=!editable;
       if(btnShareGlobal) btnShareGlobal.disabled=!editable;
+      // profile actions allowed to all logged-in admins (no special disable)
     }
 
-    /* ===== Login UX ===== */
+    /* ===== Login & Register ===== */
     const togglePass=$("#togglePass");
     if(togglePass) togglePass.addEventListener("click",()=>{ const pw=$("#password"); if(!pw) return; const t=pw.getAttribute("type")==="password"?"text":"password"; pw.setAttribute("type",t); togglePass.textContent=(t==="password"?"Lihat":"Sembunyikan"); pw.focus(); });
-    document.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && $(".page.show")?.dataset.page==="login"){ btnLogin?.click(); }});
-    if(btnLogin) btnLogin.addEventListener("click",async ()=>{ const em=(email?.value||"").trim(); const pw=password?.value||""; if(!em||!pw){ toast("Isi email & password"); return; } try{ btnLogin.disabled=true; btnLogin.textContent="Masuk…"; await signInWithEmailAndPassword(auth,em,pw); toast("Login sukses"); }catch{ toast("Login gagal"); }finally{ btnLogin.disabled=false; btnLogin.textContent="Sign In"; } });
+    document.addEventListener("keydown",(e)=>{ const page=$(".page.show")?.dataset.page; if(e.key==="Enter" && page==="login"){ btnLogin?.click(); } if(e.key==="Enter" && page==="register"){ btnRegister?.click(); } });
+    if(btnLogin) btnLogin.addEventListener("click",async ()=>{
+      const em=(email?.value||"").trim(); const pw=password?.value||"";
+      if(!em||!pw){ toast("Isi email & password"); return; }
+      try{ btnLogin.disabled=true; btnLogin.textContent="Masuk…"; await signInWithEmailAndPassword(auth,em,pw); toast("Login sukses"); }
+      catch(e){ toast("Login gagal"); }
+      finally{ btnLogin.disabled=false; btnLogin.textContent="Sign In"; }
+    });
+    $("#toRegister")?.addEventListener("click",(e)=>{ e.preventDefault(); route("register"); });
+    $("#toLogin")?.addEventListener("click",(e)=>{ e.preventDefault(); route("login"); });
+    if(btnRegister) btnRegister.addEventListener("click", async ()=>{
+      const em=(regEmail?.value||"").trim(), p1=regPass?.value||"", p2=regPass2?.value||"";
+      if(!em||!p1||!p2){ toast("Lengkapi semua kolom"); return; }
+      if(p1.length<6){ toast("Password minimal 6 karakter"); return; }
+      if(p1!==p2){ toast("Password tidak sama"); return; }
+      try{ btnRegister.disabled=true; btnRegister.textContent="Mendaftarkan…"; await createUserWithEmailAndPassword(auth, em, p1); toast("Daftar sukses"); route("dashboard"); }
+      catch(e){ toast("Gagal daftar"); }
+      finally{ btnRegister.disabled=false; btnRegister.textContent="Daftar"; }
+    });
 
-    /* ===== Anti salin ===== */
-    const allowCtx=(el)=>!!el&&(el.closest('input,textarea,[contenteditable="true"]'));
-    document.addEventListener('copy',e=>{ if(!document.body.classList.contains('allow-select')&&!allowCtx(document.activeElement)) e.preventDefault(); });
-    document.addEventListener('cut', e=>{ if(!document.body.classList.contains('allow-select')&&!allowCtx(e.target)) e.preventDefault(); });
-    document.addEventListener('contextmenu', e=>{ if(!document.body.classList.contains('allow-select')&&!allowCtx(e.target)) e.preventDefault(); }, {passive:false});
+    /* ===== Profile: avatar upload / delete ===== */
+    function fileValid(f){
+      if(!f) return {ok:false,msg:"Pilih file dulu"};
+      if(!/^image\\//.test(f.type)) return {ok:false,msg:"File harus gambar"};
+      if(f.size>5*1024*1024) return {ok:false,msg:"Maks 5MB"};
+      return {ok:true};
+    }
+    if(avatarFile){ avatarFile.addEventListener("change",()=>{
+      const f=avatarFile.files?.[0]; if(!f) return;
+      const v=fileValid(f); if(!v.ok){ toast(v.msg); avatarFile.value=""; return; }
+      const url=URL.createObjectURL(f);
+      if(profileAvatar){ profileAvatar.innerHTML=`<img src="${url}" alt="preview">`; }
+    });}
+    if(btnUploadAvatar) btnUploadAvatar.addEventListener("click", async ()=>{
+      const u=auth.currentUser; if(!u){ toast("Belum login"); return; }
+      const f=avatarFile?.files?.[0]; const v=fileValid(f); if(!v.ok){ toast(v.msg); return; }
+      try{
+        btnUploadAvatar.disabled=true; btnUploadAvatar.textContent="Mengunggah…";
+        const path=`profile/${u.uid}.jpg`;
+        await uploadBytes(sRef(storage,path), f, {contentType:f.type});
+        const url=await getDownloadURL(sRef(storage,path));
+        // refresh avatars
+        setAccountVisual(u);
+        toast("Avatar terunggah");
+      }catch(e){ toast("Upload gagal"); }
+      finally{ btnUploadAvatar.disabled=false; btnUploadAvatar.textContent="Upload Avatar"; }
+    });
+    if(btnDeleteAvatar) btnDeleteAvatar.addEventListener("click", async ()=>{
+      const u=auth.currentUser; if(!u){ toast("Belum login"); return; }
+      try{
+        btnDeleteAvatar.disabled=true; await deleteObject(sRef(storage, `profile/${u.uid}.jpg`)); setAccountVisual(u); toast("Avatar dihapus");
+      }catch(e){ toast("Hapus gagal / tidak ada"); }
+      finally{ btnDeleteAvatar.disabled=false; }
+    });
 
-    /* ===== Filter chips ===== */
+    /* ===== Profile: email & password ===== */
+    async function doReauth(){
+      const u=auth.currentUser; if(!u){ toast("Belum login"); return false; }
+      const pass=(currPass?.value||""); if(!pass){ toast("Isi password saat ini"); return false; }
+      try{
+        const cred=EmailAuthProvider.credential(u.email||"", pass);
+        await reauthenticateWithCredential(u, cred);
+        return true;
+      }catch(e){ toast("Password salah / sesi kedaluwarsa"); return false; }
+    }
+    if(btnUpdateEmail) btnUpdateEmail.addEventListener("click", async ()=>{
+      const u=auth.currentUser; if(!u) return;
+      const em=(newEmail?.value||"").trim(); if(!em){ toast("Email baru kosong"); return; }
+      if(!(await doReauth())) return;
+      try{ await updateEmail(u, em); toast("Email diubah"); setAccountVisual(auth.currentUser); newEmail.value=""; }
+      catch(e){ toast("Gagal ubah email"); }
+    });
+    if(btnUpdatePass) btnUpdatePass.addEventListener("click", async ()=>{
+      const u=auth.currentUser; if(!u) return;
+      const p=(newPass?.value||""); if(p.length<6){ toast("Minimal 6 karakter"); return; }
+      if(!(await doReauth())) return;
+      try{ await updatePassword(u, p); toast("Password diubah"); newPass.value=""; currPass.value=""; }
+      catch(e){ toast("Gagal ubah password"); }
+    });
+
+    /* ===== Keys render & actions (sama seperti versi sebelumnya, ringkas) ===== */
+    function humanBytes(n){ const u=["B","KB","MB","GB","TB"]; let i=0,v=Math.max(n||0,0); while(v>=1024 && i<u.length-1){ v/=1024; i++; } return `${v.toFixed(v<10&&i>0?1:0)}${u[i]}`; }
+    function setUsage(elId,barId,val,denom){ const el=document.getElementById(elId),bar=document.getElementById(barId); if(el) el.textContent=humanBytes(val); if(bar) bar.style.setProperty("--w",Math.min(100,(val/Math.max(denom,1))*100).toFixed(1)+"%"); }
+    async function refreshLocalDbUsage(){ try{ const snap=await get(dRef(db)); const size=new Blob([JSON.stringify(snap.val()||{})]).size; setUsage("db-bytes","bar-db",size,1024*1024); }catch(e){} }
+
+    function iconSVG(name){ switch(name){ case "noexp":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 0 1 7-7c1.9 0 3.6.78 4.83 2.05"/><path d="M19 12a7 7 0 0 1-7 7c-1.9 0-3.6-.78-4.83-2.05"/><path d="M22 2 2 22"/></svg>'; case "setdate":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>'; case "share":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51 15.42 17.49"/><path d="M15.41 6.51 8.59 10.49"/></svg>'; case "del":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4h8v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>'; default:return ''; } }
     function getFilter(){ return localStorage.getItem("gx:statusFilter")||"all"; }
     function setFilterChip(val){ localStorage.setItem("gx:statusFilter",val); $$(".chip.filter").forEach(c=>c.classList.toggle("active",c.dataset.filter===val)); }
     document.addEventListener("click",(e)=>{ const f=e.target.closest(".chip.filter"); if(!f) return; const val=f.dataset.filter; setFilterChip(val); render(); if(isAuthed()) scheduleSync(auth.currentUser.uid); });
 
-    /* ===== Modal Set Tanggal ===== */
-    const modalDateWrap=$("#modalDateWrap"), modalDate=$("#modalDate"), modalSave=$("#modalSave"), modalCancel=$("#modalCancel"); let modalKey=null;
-    function openModalSetDate(key,currMs){ if(!modalDateWrap||!modalDate) return; modalKey=key; const d=currMs?new Date(currMs):new Date(); const pad=n=>String(n).padStart(2,"0"); modalDate.value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; modalDateWrap.classList.add("show"); modalDateWrap.setAttribute("aria-hidden","false"); modalDate.focus(); }
-    function closeModalDate(){ if(!modalDateWrap) return; modalKey=null; modalDateWrap.classList.remove("show"); modalDateWrap.setAttribute("aria-hidden","true"); }
-    if(modalCancel) modalCancel.onclick=closeModalDate;
-    if(modalDateWrap) modalDateWrap.addEventListener("click",(e)=>{ if(e.target===modalDateWrap) closeModalDate(); });
-    document.addEventListener("keydown",(e)=>{ if(e.key==="Escape" && modalDateWrap?.classList.contains("show")) closeModalDate(); });
-    if(modalSave) modalSave.onclick=async ()=>{ if(!modalKey) return closeModalDate(); const v=(modalDate?.value||"").trim(); if(!v) return closeModalDate(); const {Y,M,D}=fromInputDate(v); const ms=toEOD(Y,M,D); selfWriteAt=Date.now(); await update(ref(db,"auth/keys/"+modalKey),{exp:ms}); toast("Tanggal di-set"); closeModalDate(); };
-
-    /* ===== Modal Konfirmasi ===== */
-    const modalConfirmWrap=$("#modalConfirmWrap"), confirmMsg=$("#confirmMsg"), confirmOk=$("#confirmOk"), confirmCancel=$("#confirmCancel"); let confirmResolver=null;
-    function confirmDialog(msg="Yakin?"){ if(!modalConfirmWrap||!confirmMsg) return Promise.resolve(false); confirmMsg.textContent=msg; modalConfirmWrap.classList.add("show"); modalConfirmWrap.setAttribute("aria-hidden","false"); return new Promise((res)=>{ confirmResolver=(v)=>{ modalConfirmWrap.classList.remove("show"); modalConfirmWrap.setAttribute("aria-hidden","true"); res(v); }; }); }
-    if(confirmCancel) confirmCancel.onclick=()=>confirmResolver&&confirmResolver(false);
-    if(confirmOk) confirmOk.onclick=()=>confirmResolver&&confirmResolver(true);
-    if(modalConfirmWrap) modalConfirmWrap.addEventListener("click",(e)=>{ if(e.target===modalConfirmWrap) confirmResolver&&confirmResolver(false); });
-
-    /* ===== Mini Analytics ===== */
     function calcStats(){ const ks=Object.keys(cache||{}); const now=Date.now(); let total=ks.length,perm=0,expired=0,active=0; for(const k of ks){ const e=cache[k]?.exp||0; if(e===0){perm++;continue;} if(now>e){expired++;}else{active++;} } return {total,active,expired,perm}; }
     function setBar(id,val,pct){ const valEl=document.getElementById("st-"+id); const barEl=document.getElementById("bar-"+id); if(valEl) valEl.textContent=String(val); if(barEl) barEl.style.setProperty("--w",(pct||0).toFixed(1)+"%"); }
     function updateAnalytics(){ const s=calcStats(); const denom=Math.max(s.total,1); setBar("total",s.total,s.total>0?100:0); setBar("active",s.active,(s.active/denom)*100); setBar("expired",s.expired,(s.expired/denom)*100); setBar("perm",s.perm,(s.perm/denom)*100); }
 
-    /* ===== DB usage approx ===== */
-    function humanBytes(n){ const u=["B","KB","MB","GB","TB"]; let i=0,v=Math.max(n||0,0); while(v>=1024 && i<u.length-1){ v/=1024; i++; } return `${v.toFixed(v<10&&i>0?1:0)}${u[i]}`; }
-    function setUsage(elId,barId,val,denom){ const el=document.getElementById(elId),bar=document.getElementById(barId); if(el) el.textContent=humanBytes(val); if(bar) bar.style.setProperty("--w",Math.min(100,(val/Math.max(denom,1))*100).toFixed(1)+"%"); }
-    async function refreshLocalDbUsage(){ try{ const snap=await get(ref(db)); const size=new Blob([JSON.stringify(snap.val()||{})]).size; setUsage("db-bytes","bar-db",size,1024*1024); }catch(e){} }
-
-    /* ===== Render list ===== */
-    function iconSVG(name){ switch(name){ case "noexp":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 0 1 7-7c1.9 0 3.6.78 4.83 2.05"/><path d="M19 12a7 7 0 0 1-7 7c-1.9 0-3.6-.78-4.83-2.05"/><path d="M22 2 2 22"/></svg>'; case "setdate":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>'; case "share":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51 15.42 17.49"/><path d="M15.41 6.51 8.59 10.49"/></svg>'; case "del":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4h8v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>'; default:return ''; } }
     function render(){
       if(!keyList) return;
       const ks=Object.keys(cache||{}); const now=Date.now();
@@ -505,49 +620,61 @@
         const row=document.createElement("div"); row.className="item";
         const head=document.createElement("div"); head.className="row1";
         const keySpan=document.createElement("strong"); keySpan.className="grow"; keySpan.textContent=k;
-        const copyBtn=document.createElement("button"); copyBtn.className="btn small"; copyBtn.setAttribute("aria-label","Copy key"); copyBtn.dataset.key=k; copyBtn.dataset.action="copy"; copyBtn.innerHTML='<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy';
+        const copyBtn=document.createElement("button"); copyBtn.className="btn small"; copyBtn.dataset.key=k; copyBtn.dataset.action="copy"; copyBtn.textContent="Copy";
         const status=document.createElement("span"); status.className="pill "+(expired?"exp":(soon?"soon":"ok")); status.textContent=expired?"Expired":(soon?"Segera Habis":"Aktif");
         head.appendChild(keySpan); head.appendChild(copyBtn); head.appendChild(status);
-
         const sub=document.createElement("div"); sub.className="row2 muted"; sub.textContent="Expire: "+fmtDate(expMs);
-
         const actions=document.createElement("div"); actions.className="row3";
-        const mk=(label,action,extraClass="")=>{ const b=document.createElement("button"); b.className="btn small"+(extraClass?(" "+extraClass):""); b.dataset.key=k; b.dataset.action=action; b.innerHTML=iconSVG(action)+label; return b; };
+        const mk=(label,action,extraClass="")=>{ const b=document.createElement("button"); b.className="btn small"+(extraClass?(" "+extraClass):""); b.dataset.key=k; b.dataset.action=action; b.textContent=label; return b; };
         const btnNoExp=mk("No Exp","noexp"); const btnDate=mk("Tanggal…","setdate"); const btnShare=mk("Share","share"); const del=mk("Hapus","del","danger");
         actions.appendChild(btnNoExp); actions.appendChild(btnDate); actions.appendChild(btnShare); actions.appendChild(del);
-
         row.appendChild(head); row.appendChild(sub); row.appendChild(actions); frag.appendChild(row);
       }
       if(!frag.childNodes.length){ const empty=document.createElement("div"); empty.className="item"; empty.innerHTML='<span class="muted">Tidak ada hasil.</span>'; frag.appendChild(empty); }
       keyList.appendChild(frag); updateAnalytics();
     }
 
-    /* ===== Key actions ===== */
+    /* Key actions */
     document.addEventListener("click",(e)=>{
       const b=e.target.closest("button[data-action]"); if(!b) return;
       const k=b.dataset.key,act=b.dataset.action;
       (async()=>{ try{
         if(act==="copy"){ await navigator.clipboard.writeText(k); toast("Disalin"); }
         else if(act==="share"){ const text=`KEY: ${k}`; if(navigator.share){ try{ await navigator.share({title:"GxMods Key",text}); }catch{} } else { await navigator.clipboard.writeText(text); toast("Disalin (share tidak didukung)"); } }
-        else if(act==="noexp"){ selfWriteAt=Date.now(); await update(ref(db,"auth/keys/"+k),{exp:0}); toast("No Exp"); }
+        else if(act==="noexp"){ selfWriteAt=Date.now(); await update(dRef(db,"auth/keys/"+k),{exp:0}); toast("No Exp"); }
         else if(act==="setdate"){ openModalSetDate(k,cache[k]?.exp||0); }
-        else if(act==="del"){ const ok=await confirmDialog(`Hapus key: ${k}?`); if(!ok) return; selfWriteAt=Date.now(); await remove(ref(db,"auth/keys/"+k)); toast("Dihapus"); }
+        else if(act==="del"){ const ok=await confirmDialog(`Hapus key: ${k}?`); if(!ok) return; selfWriteAt=Date.now(); await remove(dRef(db,"auth/keys/"+k)); toast("Dihapus"); }
       }catch{ toast("Gagal"); } })();
     },{passive:true});
 
-    /* ===== Form controls ===== */
-    if(btnAdd) btnAdd.onclick=async ()=>{ const raw=(newKey?.value||""); const k=sanitizeKey(raw); if(!k){ toast("Isi key"); return; } const val=(exp?.value||"").trim(); let ms=0; if(val){ const {Y,M,D}=fromInputDate(val); ms=toEOD(Y,M,D); } selfWriteAt=Date.now(); await update(ref(db,"auth/keys/"+k),{exp:ms}); if(newKey) newKey.value=""; if(exp) exp.value=""; toast("Ditambahkan"); };
-    if(btnSaveGlobal) btnSaveGlobal.onclick=async ()=>{ selfWriteAt=Date.now(); await set(ref(db,"auth/globalKey"),(globalKey?.value||"").trim()); toast("Global key disimpan"); };
-    if(btnClearGlobal) btnClearGlobal.onclick=async ()=>{ selfWriteAt=Date.now(); await set(ref(db,"auth/globalKey"),""); if(globalKey) globalKey.value=""; toast("Dikosongkan"); };
+    /* Form controls */
+    const sanitizeKey=(k)=>sanitize(k);
+    if(btnAdd) btnAdd.onclick=async ()=>{ const raw=(newKey?.value||""); const k=sanitizeKey(raw); if(!k){ toast("Isi key"); return; } const val=(exp?.value||"").trim(); let ms=0; if(val){ const {Y,M,D}=fromInputDate(val); ms=toEOD(Y,M,D); } selfWriteAt=Date.now(); await update(dRef(db,"auth/keys/"+k),{exp:ms}); if(newKey) newKey.value=""; if(exp) exp.value=""; toast("Ditambahkan"); };
+    if(btnSaveGlobal) btnSaveGlobal.onclick=async ()=>{ selfWriteAt=Date.now(); await set(dRef(db,"auth/globalKey"),(globalKey?.value||"").trim()); toast("Global key disimpan"); };
+    if(btnClearGlobal) btnClearGlobal.onclick=async ()=>{ selfWriteAt=Date.now(); await set(dRef(db,"auth/globalKey"),""); if(globalKey) globalKey.value=""; toast("Dikosongkan"); };
     if(btnShareGlobal) btnShareGlobal.onclick=async ()=>{ const v=(globalKey?.value||"").trim(); if(!v){ toast("Global key kosong"); return; } const text="GLOBAL KEY: "+v; if(navigator.share){ try{ await navigator.share({title:"GxMods Global Key",text}); }catch{} } else { await navigator.clipboard.writeText(text); toast("Disalin (share tidak didukung)"); } };
 
+    /* Modal tanggal */
+    const modalDateWrap=$("#modalDateWrap"), modalDate=$("#modalDate"), modalSave=$("#modalSave"), modalCancel=$("#modalCancel");
+    let modalKey=null;
+    function openModalSetDate(key,currMs){ if(!modalDateWrap||!modalDate) return; modalKey=key; const d=currMs?new Date(currMs):new Date(); const pad=n=>String(n).padStart(2,"0"); modalDate.value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; modalDateWrap.classList.add("show"); modalDateWrap.setAttribute("aria-hidden","false"); modalDate.focus(); }
+    function closeModalDate(){ if(!modalDateWrap) return; modalKey=null; modalDateWrap.classList.remove("show"); modalDateWrap.setAttribute("aria-hidden","true"); }
+    if(modalCancel) modalCancel.onclick=closeModalDate;
+    if(modalDateWrap) modalDateWrap.addEventListener("click",(e)=>{ if(e.target===modalDateWrap) closeModalDate(); });
+    document.addEventListener("keydown",(e)=>{ if(e.key==="Escape" && modalDateWrap?.classList.contains("show")) closeModalDate(); });
+    if(modalSave) modalSave.onclick=async ()=>{ if(!modalKey) return closeModalDate(); const v=(modalDate?.value||"").trim(); if(!v) return closeModalDate(); const {Y,M,D}=fromInputDate(v); const ms=toEOD(Y,M,D); selfWriteAt=Date.now(); await update(dRef(db,"auth/keys/"+modalKey),{exp:ms}); toast("Tanggal di-set"); closeModalDate(); };
+
+    /* Modal konfirmasi */
+    const modalConfirmWrap=$("#modalConfirmWrap"), confirmMsg=$("#confirmMsg"), confirmOk=$("#confirmOk"), confirmCancel=$("#confirmCancel"); let confirmResolver=null;
+    function confirmDialog(msg="Yakin?"){ if(!modalConfirmWrap||!confirmMsg) return Promise.resolve(false); confirmMsg.textContent=msg; modalConfirmWrap.classList.add("show"); modalConfirmWrap.setAttribute("aria-hidden","false"); return new Promise((res)=>{ confirmResolver=(v)=>{ modalConfirmWrap.classList.remove("show"); modalConfirmWrap.setAttribute("aria-hidden","true"); res(v); }; }); }
+    if(confirmCancel) confirmCancel.onclick=()=>confirmResolver&&confirmResolver(false);
+    if(confirmOk) confirmOk.onclick=()=>confirmResolver&&confirmResolver(true);
+    if(modalConfirmWrap) modalConfirmWrap.addEventListener("click",(e)=>{ if(e.target===modalConfirmWrap) confirmResolver&&confirmResolver(false); });
+
+    /* Live search & chips tanggal */
     const debounce=(fn,ms)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
     document.addEventListener("click",(e)=>{ const chip=e.target.closest(".chip[data-add]"); if(!chip||!exp) return; const add=parseInt(chip.dataset.add||"0",10); if(add===0){ exp.value=""; toast("Tanpa Exp"); return; } let baseDate; if((exp.value||"").trim()){ const {Y,M,D}=fromInputDate(exp.value.trim()); baseDate=new Date(Y,M-1,D);} else { baseDate=new Date(); } baseDate.setDate(baseDate.getDate()+add); const pad=n=>String(n).padStart(2,"0"); exp.value=`${baseDate.getFullYear()}-${pad(baseDate.getMonth()+1)}-${pad(baseDate.getDate())}`; toast(`+${add} hari`); });
-    const liveSearch=debounce(render,200);
-    search?.addEventListener("input",liveSearch,{passive:true});
-    search?.addEventListener("keyup",liveSearch,{passive:true});
-
-    try{ if('deviceMemory' in navigator && navigator.deviceMemory<=2){ document.body.classList.add('lite'); } }catch{}
+    const liveSearch=debounce(render,200); search?.addEventListener("input",liveSearch,{passive:true}); search?.addEventListener("keyup",liveSearch,{passive:true});
 
     // Fallback anti “memuat terus”
     window.addEventListener('error',()=>{ document.body.classList.remove('booting'); document.getElementById("boot")?.remove(); },{once:true});
