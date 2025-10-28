@@ -318,73 +318,6 @@
 
         <h3>Pengaturan</h3>
 
-        <!-- === Profil === -->
-        <div class="card" id="profileCard">
-          <h3>Profil</h3>
-
-          <div class="row" style="display:flex;align-items:center;gap:12px">
-            <div class="avatar" id="pf-preview" style="width:56px;height:56px;border-radius:999px;display:flex;align-items:center;justify-content:center"><span>?</span></div>
-            <div style="flex:1">
-              <div class="muted" style="margin-bottom:6px">Foto Profil</div>
-              <input id="pf-avatar" type="file" accept="image/*">
-            </div>
-            <button id="btnSaveProfile" class="btn">Simpan Profil</button>
-          </div>
-
-          <div class="row" style="display:flex;gap:12px">
-            <div style="flex:1">
-              <label class="muted">Nama Tampilan</label>
-              <input id="pf-name" type="text" placeholder="Nama Anda">
-            </div>
-          </div>
-
-          <div class="row" style="display:flex;gap:12px;flex-wrap:wrap">
-            <div style="flex:1;min-width:220px">
-              <label class="muted">Email baru</label>
-              <input id="pf-email-new" type="email" placeholder="name@example.com">
-            </div>
-            <div style="flex:1;min-width:220px">
-              <label class="muted">Password saat ini</label>
-              <input id="pf-curpass-e" type="password" placeholder="••••••••">
-            </div>
-            <div style="display:flex;align-items:flex-end">
-              <button id="btnChangeEmail" class="btn ghost">Ganti Email</button>
-            </div>
-          </div>
-
-          <div class="row" style="display:flex;gap:12px;flex-wrap:wrap">
-            <div style="flex:1;min-width:220px">
-              <label class="muted">Password saat ini</label>
-              <input id="pf-curpass" type="password" placeholder="••••••••">
-            </div>
-            <div style="flex:1;min-width:220px">
-              <label class="muted">Password baru</label>
-              <input id="pf-pass-new" type="password" placeholder="••••••••">
-            </div>
-            <div style="display:flex;align-items:flex-end">
-              <button id="btnChangePass" class="btn ghost">Ganti Password</button>
-            </div>
-          </div>
-
-          <details class="muted" style="margin-top:8px">
-            <summary>Catatan singkat Firebase</summary>
-            <div style="font-size:.9em">
-              <p><b>Auth</b>: Email/Password harus diaktifkan di Firebase Console.</p>
-              <p><b>Storage Rules (contoh aman)</b> — izinkan user unggah avatarnya sendiri:</p>
-              <pre style="white-space:pre-wrap;background:#0b0f0e;padding:8px;border-radius:8px">rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /profile/{file} {
-    allow read:  if request.auth != null && file == request.auth.uid + '.jpg';
-    allow write: if request.auth != null && file == request.auth.uid + '.jpg';
-  }
-  }
-}</pre>
-            </div>
-          </details>
-        </div>
-
-
         <div class="row" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           <div><strong>Kurangi efek</strong><span class="muted" style="margin-left:8px">Animasi tetap halus, efek berat diminimalkan.</span></div>
           <label class="switch"><input id="reduce" type="checkbox"><span class="track"><i class="thumb"></i></span></label>
@@ -500,11 +433,12 @@ service firebase.storage {
 };
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, updateProfile, updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-import { getDatabase, ref, onValue, set, update, remove, off, get } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+    import {
+      getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
+      setPersistence, browserLocalPersistence
+    } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+    import { getDatabase, ref, onValue, set, update, remove, off, get } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
 
-    
-    import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     setPersistence(auth, browserLocalPersistence).catch(()=>{});
@@ -601,96 +535,6 @@ import { getDatabase, ref, onValue, set, update, remove, off, get } from "https:
     const menuEmail=$("#menuEmail");
     const menuRole=$("#menuRole");
     const menuAvatar=$("#menuAvatar");
-
-// === Profile/Settings Handlers ===
-const pfPreview = $("#pf-preview");
-const pfAvatar  = $("#pf-avatar");
-const pfName    = $("#pf-name");
-const pfEmailNew= $("#pf-email-new");
-const pfCurPassE= $("#pf-curpass-e");
-const pfCurPass = $("#pf-curpass");
-const pfPassNew = $("#pf-pass-new");
-const btnSaveProfile = $("#btnSaveProfile");
-const btnChangeEmail = $("#btnChangeEmail");
-const btnChangePass  = $("#btnChangePass");
-
-// Live preview for avatar
-pfAvatar?.addEventListener("change", ()=>{
-  const f = pfAvatar.files && pfAvatar.files[0];
-  if(!f) return;
-  const reader = new FileReader();
-  reader.onload = (e)=>{ if(pfPreview) pfPreview.style.background = `center/cover no-repeat url('${e.target.result}')`; };
-  reader.readAsDataURL(f);
-});
-
-async function saveProfile(){
-  if(!auth.currentUser){ toast("Tidak login"); return; }
-  const updates = {};
-  const name = (pfName?.value||"").trim();
-  if(name) updates.displayName = name;
-
-  try{
-    btnSaveProfile && (btnSaveProfile.disabled=true, btnSaveProfile.textContent="Menyimpan…");
-    // Upload avatar kalau ada
-    if(pfAvatar && pfAvatar.files && pfAvatar.files[0]){
-      const storage = getStorage(app);
-      const ext = (pfAvatar.files[0].name.split('.').pop()||'jpg').toLowerCase();
-      const path = `profile/${auth.currentUser.uid}.jpg`; // paksa jpg untuk konsistensi
-      await uploadBytes(sRef(storage, path), pfAvatar.files[0], { contentType: pfAvatar.files[0].type || 'image/jpeg' });
-      const url = await getDownloadURL(sRef(storage, path));
-      updates.photoURL = url;
-    }
-    if(Object.keys(updates).length){
-      await updateProfile(auth.currentUser, updates);
-      toast("Profil tersimpan");
-      // Sinkron avatar/label
-      setAccountEmail(auth.currentUser);
-    }else{
-      toast("Tidak ada perubahan");
-    }
-  }catch(e){ toast("Gagal simpan profil"); }
-  finally{ if(btnSaveProfile){ btnSaveProfile.disabled=false; btnSaveProfile.textContent="Simpan Profil"; } }
-}
-btnSaveProfile?.addEventListener("click", saveProfile);
-
-async function reauth(currentPass){
-  if(!auth.currentUser) throw new Error("not authed");
-  const email = auth.currentUser.email;
-  const cred = EmailAuthProvider.credential(email, currentPass||"");
-  await reauthenticateWithCredential(auth.currentUser, cred);
-}
-
-btnChangeEmail?.addEventListener("click", async ()=>{
-  const newEmail = (pfEmailNew?.value||"").trim();
-  const cur = (pfCurPassE?.value||"");
-  if(!newEmail || !cur){ toast("Isi email baru & password saat ini"); return; }
-  try{
-    btnChangeEmail.disabled=true; btnChangeEmail.textContent="Memproses…";
-    await reauth(cur);
-    await updateEmail(auth.currentUser, newEmail);
-    toast("Email diperbarui");
-    setAccountEmail(auth.currentUser);
-    pfEmailNew.value=""; pfCurPassE.value="";
-  }catch(e){ toast("Gagal ganti email"); }
-  finally{ btnChangeEmail.disabled=false; btnChangeEmail.textContent="Ganti Email"; }
-});
-
-btnChangePass?.addEventListener("click", async ()=>{
-  const cur = (pfCurPass?.value||"");
-  const nw  = (pfPassNew?.value||"");
-  if(!cur || !nw){ toast("Isi password saat ini & baru"); return; }
-  if(nw.length < 6){ toast("Password baru minimal 6 karakter"); return; }
-  try{
-    btnChangePass.disabled=true; btnChangePass.textContent="Memproses…";
-    await reauth(cur);
-    await updatePassword(auth.currentUser, nw);
-    toast("Password diperbarui");
-    pfCurPass.value=""; pfPassNew.value="";
-  }catch(e){ toast("Gagal ganti password"); }
-  finally{ btnChangePass.disabled=false; btnChangePass.textContent="Ganti Password"; }
-});
-
-
     // Top avatar opens drawer; drawer footer logout signs out
     if (topAvatar) topAvatar.addEventListener("click", openDrawer);
     if (drawerLogout) drawerLogout.addEventListener("click", ()=>{ signOut(auth).catch(()=>{}); });
@@ -790,50 +634,18 @@ btnChangePass?.addEventListener("click", async ()=>{
       let h=0; for(let i=0;i<str.length;i++){ h=(h*31 + str.charCodeAt(i))>>>0; }
       return h%360;
     }
-    
-function setAccountEmail(u){
-  const text = (u && u.email) ? u.email : "Belum login";
-  if(acctEmail) acctEmail.textContent = text;
-  if(menuEmail) menuEmail.textContent = text;
+    function setAccountEmail(u){
+      const text = (u && u.email) ? u.email : "Belum login";
+      if(acctEmail) acctEmail.textContent = text;
+      if(menuEmail) menuEmail.textContent = text;
 
-  const role = (u && isAuthed()) ? (roleOf(u.uid)||"editor") : "guest";
-  if(menuRole) menuRole.textContent = role;
+      const role = (u && isAuthed()) ? (roleOf(u.uid)||"editor") : "guest";
+      if(menuRole) menuRole.textContent = role;
 
-  // Avatar inisial + warna di drawer
-  const init = (text && text[0] || "?").toUpperCase();
-  if(menuAvatar){
-    menuAvatar.innerHTML = `<span>${init}</span>`;
-    const hue = hueHash(text);
-    menuAvatar.style.background = `hsl(${hue} 35% 22%)`;
-    menuAvatar.style.borderColor = `hsl(${hue} 35% 30%)`;
-  }
-
-  // Sinkron preview di Settings
-  const acctEmailEl = $("#acctEmail");
-  if(acctEmailEl) acctEmailEl.textContent = text;
-  const n = u && (u.displayName||"");
-  if(pfName) pfName.value = n || "";
-  const p = u && u.photoURL;
-  if(pfPreview) {
-    if (p) { pfPreview.style.background = `center/cover no-repeat url('${p}')`; pfPreview.innerHTML=""; }
-    else { pfPreview.style.background = ""; pfPreview.innerHTML = `<span>${init}</span>`; }
-  }
-
-  // Avatar kanan atas
-  if(topAvatar){
-    const hue = hueHash(text);
-    const init2 = init;
-    topAvatar.innerHTML = `<span style="font-weight:700">${init2}</span>`;
-    topAvatar.style.background = `hsl(${hue} 35% 22%)`;
-    topAvatar.style.border = "1px solid";
-    topAvatar.style.borderColor = `hsl(${hue} 35% 30%)`;
-  }
-}
-')` : "";
-      if(!p && pfPreview){ pfPreview.innerHTML = `<span>${init}</span>`; }
-
-    }
-</span>`;
+      // Avatar inisial + warna
+      const init = (text && text[0] || "?").toUpperCase();
+      if(menuAvatar){
+        menuAvatar.innerHTML = `<span>${init}</span>`;
         const hue = hueHash(text);
         menuAvatar.style.background = `hsl(${hue} 35% 22%)`;
         menuAvatar.style.borderColor = `hsl(${hue} 35% 30%)`;
