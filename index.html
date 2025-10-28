@@ -359,8 +359,13 @@
     if(backdrop) backdrop.onclick=closeDrawer;
     document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"&&drawer?.classList.contains("open")){ e.preventDefault(); closeDrawer(); }});
 
+    /* ===== Admins watcher (dengan error handler) ===== */
     let ADMINS={};
-    onValue(dRef(db,"auth/admins"), s=>{ ADMINS=s.val()||{}; try{ updateNav(isAuthed()); }catch{} try{ render(); }catch{} });
+    const watchAdmins=()=>onValue(
+      dRef(db,"auth/admins"),
+      s=>{ ADMINS=s.val()||{}; try{ updateNav(isAuthed()); }catch{} try{ render(); }catch{} },
+      err=>{ console.warn("Admins read denied/err:", err?.code||err); ADMINS={}; try{ updateNav(isAuthed()); }catch{} }
+    );
 
     const isAuthed=()=>{ const u=auth.currentUser; return !!u && (LOCAL_ADMINS.includes(u.uid)|| !!ADMINS[u.uid]); };
     const roleOf=(uid)=> LOCAL_ADMINS.includes(uid) ? "owner" : (ADMINS?.[uid]===true?"owner":(ADMINS?.[uid]||null));
@@ -425,22 +430,22 @@
         if(rAt>lAt){ writeLocalSettings(remote); applySettingsToDOM(remote); }
         else if(rAt<lAt && remoteReady){ pushSettings(uid); }
         remoteReady=true;
-      });
+      },()=>{/* ignore */});
     }
     let syncTimer=null; function scheduleSync(uid){ clearTimeout(syncTimer); syncTimer=setTimeout(()=>pushSettings(uid),250); }
     [reduce,sortExpired,hideGlobal,allowSelect].forEach(el=>{ if(!el) return; el.addEventListener("change",()=>{ const d=currentSettings(); applySettingsToDOM(d); writeLocalSettings(d); if(isAuthed()) scheduleSync(auth.currentUser.uid); if(el===sortExpired) render(); }); });
 
     /* ===== Data ===== */
-    let cache={}; let selfWriteAt=0;
+    let cache={}; let selfWriteAt=0; let unsubs=[];
     function startData(){
       stopData();
-      onValue(dRef(db,"auth/globalKey"), s=>{ if(globalKey) globalKey.value = s.exists()? (s.val()||"") : ""; });
-      onValue(dRef(db,"auth/keys"), s=>{
+      unsubs.push(onValue(dRef(db,"auth/globalKey"), s=>{ if(globalKey) globalKey.value = s.exists()? (s.val()||"") : ""; }, ()=>{/* ignore */}));
+      unsubs.push(onValue(dRef(db,"auth/keys"), s=>{
         const v=s.val()||{}; const serialized=JSON.stringify(v);
         if(JSON.stringify(cache)!==serialized){ cache=v; try{ localStorage.setItem("gx:cacheKeys",serialized); }catch{} render(); if(Date.now()-selfWriteAt>1200) toast("Data diperbarui"); }
-      });
+      }, err=>{ console.warn("keys read denied/err:", err?.code||err); }));
     }
-    function stopData(){ try{ off(dRef(db,"auth/globalKey")); off(dRef(db,"auth/keys")); }catch{} }
+    function stopData(){ try{ unsubs.forEach(off=>typeof off==="function"&&off()); }catch{} unsubs=[]; try{ off(dRef(db,"auth/globalKey")); off(dRef(db,"auth/keys")); }catch{} }
     try{ const c=localStorage.getItem("gx:cacheKeys"); if(c){ cache=JSON.parse(c); render(); } }catch{}
 
     /* ===== Account visual ===== */
@@ -482,17 +487,23 @@
     }
 
     /* ===== Auth state ===== */
+    let unwatchAdmins=watchAdmins(); // mulai sekarang, tapi aman krn ada error handler
     onAuthStateChanged(auth,(user)=>{
-      if(user && isAuthed()){
-        startSettingsSync(user.uid);
-        updateNav(true); startData(); setAccountVisual(user);
-        route(localStorage.getItem("gx:route")||"dashboard"); refreshLocalDbUsage();
-      }else{
-        stopData(); updateNav(false); route("login"); setAccountVisual(null);
-        if(user && !isAuthed()){ signOut(auth).catch(()=>{}); toast("Bukan admin"); }
+      try{
+        if(user && isAuthed()){
+          startSettingsSync(user.uid);
+          updateNav(true); startData(); setAccountVisual(user);
+          route(localStorage.getItem("gx:route")||"dashboard"); refreshLocalDbUsage();
+        }else{
+          stopData(); updateNav(false); route("login"); setAccountVisual(null);
+          if(user && !isAuthed()){ signOut(auth).catch(()=>{}); toast("Bukan admin"); }
+        }
+      }finally{
+        document.body.classList.remove("booting");
+        document.getElementById("boot")?.remove();
       }
-      document.body.classList.remove("booting"); document.getElementById("boot")?.remove();
     });
+
     function updateNav(authed){
       document.body.classList.toggle("authed",!!authed);
       document.body.classList.toggle("noauth",!authed);
@@ -530,7 +541,7 @@
     /* ===== Profile: avatar upload / delete ===== */
     function fileValid(f){
       if(!f) return {ok:false,msg:"Pilih file dulu"};
-      if(!/^image\\//.test(f.type)) return {ok:false,msg:"File harus gambar"};
+      if(!/^image\//.test(f.type)) return {ok:false,msg:"File harus gambar"};
       if(f.size>5*1024*1024) return {ok:false,msg:"Maks 5MB"};
       return {ok:true};
     }
@@ -643,6 +654,7 @@
     },{passive:true});
 
     /* Form controls */
+    const btnAdd=$("#btnAdd");
     if(btnAdd) btnAdd.onclick=async ()=>{
       const raw=(newKey?.value||""); const k=sanitize(raw);
       if(!k){ toast("Isi key"); return; }
@@ -678,10 +690,11 @@
     document.addEventListener("click",(e)=>{ const chip=e.target.closest(".chip[data-add]"); if(!chip||!exp) return; const add=parseInt(chip.dataset.add||"0",10); if(add===0){ exp.value=""; toast("Tanpa Exp"); return; } let baseDate; if((exp.value||"").trim()){ const {Y,M,D}=fromInputDate(exp.value.trim()); baseDate=new Date(Y,M-1,D);} else { baseDate=new Date(); } baseDate.setDate(baseDate.getDate()+add); const pad=n=>String(n).padStart(2,"0"); exp.value=`${baseDate.getFullYear()}-${pad(baseDate.getMonth()+1)}-${pad(baseDate.getDate())}`; toast(`+${add} hari`); });
     const liveSearch=debounce(render,200); search?.addEventListener("input",liveSearch,{passive:true}); search?.addEventListener("keyup",liveSearch,{passive:true});
 
-    // Fallback anti “memuat terus”
-    window.addEventListener('error',()=>{ document.body.classList.remove('booting'); document.getElementById("boot")?.remove(); },{once:true});
-    window.addEventListener('unhandledrejection',()=>{ document.body.classList.remove('booting'); document.getElementById("boot")?.remove(); },{once:true});
-    setTimeout(()=>{ if(document.body.classList.contains('booting')){ document.body.classList.remove('booting'); document.getElementById("boot")?.remove(); route('login'); } },2500);
+    // Fallback anti “memuat terus” (pastikan selalu eksekusi)
+    const bail=()=>{ document.body.classList.remove('booting'); document.getElementById("boot")?.remove(); if(!$(".page.show")) route('login'); };
+    window.addEventListener('error',bail,{once:true});
+    window.addEventListener('unhandledrejection',bail,{once:true});
+    setTimeout(()=>{ if(document.body.classList.contains('booting')) bail(); },2000);
   </script>
 </body>
 </html>
