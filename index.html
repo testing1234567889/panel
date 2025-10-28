@@ -635,7 +635,7 @@ async function saveProfile(){
       const storage = getStorage(app);
       const ext = (pfAvatar.files[0].name.split('.').pop()||'jpg').toLowerCase();
       const path = `profile/${auth.currentUser.uid}.jpg`; // paksa jpg untuk konsistensi
-      await uploadBytes(sRef(storage, path), pfAvatar.files[0]);
+      await uploadBytes(sRef(storage, path), pfAvatar.files[0], { contentType: pfAvatar.files[0].type || 'image/jpeg' });
       const url = await getDownloadURL(sRef(storage, path));
       updates.photoURL = url;
     }
