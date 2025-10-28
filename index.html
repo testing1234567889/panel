@@ -476,33 +476,7 @@
 
       if(currEmail) currEmail.value=u?.email||"";
       const dn=$("#displayName"); if(dn) dn.value=nameTxt!=="Belum login"?nameTxt:"";
-    } 35% 22%)`, colorBD=`hsl(${hue} 35% 30%)`;
-
-      function putAvatar(el, url){
-        if(!el) return;
-        el.innerHTML="";
-        if(url){
-          const img=document.createElement("img"); img.src=url; el.appendChild(img);
-        }else{
-          const span=document.createElement("span"); span.textContent=init; el.appendChild(span);
-        }
-        el.style.background=colorBG; el.style.borderColor=colorBD;
-      }
-
-      // Try load avatar from Storage
-      if(u){
-        getDownloadURL(sRef(storage, `profile/${u.uid}.jpg`)).then(url=>{
-          putAvatar(menuAvatar, url); putAvatar(topAvatar, url); putAvatar(profileAvatar, url);
-        }).catch(()=>{
-          putAvatar(menuAvatar, null); putAvatar(topAvatar, null); putAvatar(profileAvatar, null);
-        });
-      }else{
-        putAvatar(menuAvatar, null); putAvatar(topAvatar, null); putAvatar(profileAvatar, null);
-      }
-
-      if(currEmail) currEmail.value=u?.email||"";
     }
-
     /* ===== Auth state ===== */
     let unwatchAdmins=watchAdmins();
     onAuthStateChanged(auth,(user)=>{
