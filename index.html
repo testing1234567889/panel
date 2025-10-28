@@ -1,634 +1,558 @@
-<script type="module">
-  /* =================== Konstanta Versi =================== */
-  const APP_VERSION = "v0.0.1 beta";
-  document.addEventListener("DOMContentLoaded", () => {
-    const v = document.getElementById("appVersion");
-    if (v) v.textContent = APP_VERSION;
-  });
-
-  /* =================== Firebase =================== */
-  // OWNERs: dua UID milik kamu
-  const ADMIN_UIDS = ["dqFIuPQY1PfYvcLdkrxztZEDkkl1", "nIGjiue818WwLCjEsSUZX3OLtan1"];
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyAu--L2T5_o9xLVT09mXFLIcpPuLLWlL1Q",
-    authDomain: "aplikasi-percobaan-dbf84.firebaseapp.com",
-    databaseURL: "https://aplikasi-percobaan-dbf84-default-rtdb.firebaseio.com",
-    projectId: "aplikasi-percobaan-dbf84",
-    storageBucket: "aplikasi-percobaan-dbf84.appspot.com",
-    messagingSenderId: "52109851315",
-    appId: "1:52109851315:web:ba255b74b4ce0500774ec6",
-    measurementId: "G-H6WCVTQQEM"
-  };
-
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-  import {
-    getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
-    setPersistence, browserLocalPersistence,
-    updateProfile, updateEmail, updatePassword,
-    reauthenticateWithCredential, EmailAuthProvider
-  } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-  import { getDatabase, ref, onValue, set, update, remove, off } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
-  import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  setPersistence(auth, browserLocalPersistence).catch(() => { });
-  const db = getDatabase(app);
-
-  /* =================== Utils =================== */
-  const $ = (s, el = document) => el.querySelector(s);
-  const $$ = (s, el = document) => el.querySelectorAll(s);
-  const toastEl = $("#toast");
-  let toastTimer = null;
-  const toast = (t) => {
-    toastEl.textContent = t;
-    toastEl.style.display = "block";
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.style.display = "none", 1500);
-  };
-  const fmtDate = (ms) => ms ? new Date(ms).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) : "Permanen";
-  const toEOD = (Y, M, D) => new Date(Y, M - 1, D, 23, 59, 59, 999).getTime();
-  const fromInputDate = (v) => { const [Y, M, D] = v.split("-").map(n => parseInt(n, 10)); return { Y, M, D }; };
-  const sanitizeKey = (k) => (k || "").normalize("NFKC").replace(/\s+/g, "").replace(/[^\w\-.:@]/g, "");
-
-  const protectedRoutes = new Set(["dashboard", "keys", "settings"]);
-
-  /* Drawer a11y */
-  const menuBtn = $("#menuBtn");
-  const drawer = $("#drawer");
-  const backdrop = $("#backdrop");
-  drawer.setAttribute("aria-hidden", "true");
-  try { drawer.inert = true; } catch { }
-
-  function openDrawer() {
-    drawer.classList.add("open"); backdrop.classList.add("show");
-    drawer.removeAttribute("aria-hidden"); try { drawer.inert = false; } catch { }
-    menuBtn.setAttribute("aria-expanded", "true");
-    const first = drawer.querySelector(".nav a") || drawer; (first instanceof HTMLElement ? first : drawer).focus();
-  }
-  function closeDrawer() {
-    if (drawer.contains(document.activeElement)) { menuBtn.focus(); }
-    drawer.classList.remove("open"); backdrop.classList.remove("show");
-    drawer.setAttribute("aria-hidden", "true"); try { drawer.inert = true; } catch { }
-    menuBtn.setAttribute("aria-expanded", "false");
-  }
-  menuBtn.onclick = openDrawer; backdrop.onclick = closeDrawer;
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && drawer.classList.contains("open")) { e.preventDefault(); closeDrawer(); } });
-
-  /* Multi-admin whitelist (RTDB: auth/admins/{uid}) */
-  let ADMINS = {}; // {uid: true|"owner"|"editor"|"viewer"}
-  onValue(ref(db, "auth/admins"), s => { ADMINS = s.val() || {}; try { updateNav(isAuthed()); } catch { } try { render(); } catch { } });
-
-  const isAuthed = () => {
-    const u = auth.currentUser;
-    if (!u) return false;
-    return (ADMIN_UIDS.includes(u.uid)) || !!ADMINS[u.uid];
-  };
-  const roleOf = (uid) => ADMIN_UIDS.includes(uid) ? "owner" : (ADMINS?.[uid] === true ? "owner" : (ADMINS?.[uid] || null));
-  const canEdit = () => {
-    const u = auth.currentUser;
-    if (!u) return false;
-    const r = roleOf(u.uid);
-    return !!r && r !== "viewer";
-  };
-
-  /* Routing */
-  function hardGuard(name) { return protectedRoutes.has(name) && !isAuthed() ? "login" : name; }
-  function updateBottomNav(name) {
-    $$("#bottomnav a").forEach(a => {
-      const active = a.dataset.route === name;
-      a.classList.toggle("active", active);
-      a.setAttribute("aria-current", active ? "page" : "false");
-    });
-  }
-  function route(name) {
-    name = hardGuard(name);
-    $$(".page").forEach(p => p.classList.toggle("show", p.dataset.page === name));
-    $$(".nav a").forEach(a => a.classList.toggle("active", a.dataset.route === name));
-    updateBottomNav(name);
-    if (isAuthed()) { localStorage.setItem("gx:route", name); } else { localStorage.removeItem("gx:route"); }
-    closeDrawer();
-    try { document.scrollingElement.scrollTo({ top: 0, behavior: "smooth" }); } catch { }
-  }
-  $$(".nav a").forEach(a => a.onclick = (e) => { e.preventDefault(); route(a.dataset.route); });
-  $$("#bottomnav a").forEach(a => a.addEventListener("click", (e) => { e.preventDefault(); route(a.dataset.route); }, { passive: false }));
-
-  /* UI refs */
-  const globalKey = $("#globalKey"), btnSaveGlobal = $("#btnSaveGlobal"), btnClearGlobal = $("#btnClearGlobal"), btnShareGlobal = $("#btnShareGlobal");
-  const newKey = $("#newKey"), exp = $("#exp"), btnAdd = $("#btnAdd"), createKeyCard = $("#createKeyCard");
-  const keyList = $("#keyList"), search = $("#search");
-  const sortExpired = $("#sortExpired"), hideGlobal = $("#hideGlobal"), allowSelect = $("#allowSelect"), reduce = $("#reduce");
-  const email = $("#email"), password = $("#password"), btnLogin = $("#btnLogin");
-  const btnSignOut = $("#btnSignOut");
-  const globalKeyCard = $("#globalKeyCard");
-  const acctEmail = $("#acctEmail");
-  const menuEmail = $("#menuEmail");
-  const menuRole = $("#menuRole");
-  const menuAvatar = $("#menuAvatar");
-
-  // Profile/Settings
-  const pfPreview = $("#pf-preview");
-  const pfAvatar = $("#pf-avatar");
-  const pfName = $("#pf-name");
-  const pfEmailNew = $("#pf-email-new");
-  const pfCurPassE = $("#pf-curpass-e");
-  const pfCurPass = $("#pf-curpass");
-  const pfPassNew = $("#pf-pass-new");
-  const btnSaveProfile = $("#btnSaveProfile");
-  const btnChangeEmail = $("#btnChangeEmail");
-  const btnChangePass = $("#btnChangePass");
-
-  pfAvatar?.addEventListener("change", () => {
-    const f = pfAvatar.files && pfAvatar.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = (e) => { if (pfPreview) { pfPreview.style.background = `center/cover no-repeat url('${e.target.result}')`; pfPreview.innerHTML = ""; } };
-    reader.readAsDataURL(f);
-  });
-
-  async function saveProfile() {
-    if (!auth.currentUser) { toast("Tidak login"); return; }
-    const updates = {};
-    const name = (pfName?.value || "").trim();
-    if (name) updates.displayName = name;
-
-    try {
-      if (btnSaveProfile) { btnSaveProfile.disabled = true; btnSaveProfile.textContent = "Menyimpan…"; }
-      if (pfAvatar && pfAvatar.files && pfAvatar.files[0]) {
-        const storage = getStorage(app);
-        const path = `profile/${auth.currentUser.uid}.jpg`;
-        await uploadBytes(sRef(storage, path), pfAvatar.files[0], { contentType: pfAvatar.files[0].type || 'image/jpeg' });
-        const url = await getDownloadURL(sRef(storage, path));
-        updates.photoURL = url;
-      }
-      if (Object.keys(updates).length) {
-        await updateProfile(auth.currentUser, updates);
-        toast("Profil tersimpan");
-        setAccountEmail(auth.currentUser);
-      } else {
-        toast("Tidak ada perubahan");
-      }
-    } catch (e) { toast("Gagal simpan profil"); }
-    finally { if (btnSaveProfile) { btnSaveProfile.disabled = false; btnSaveProfile.textContent = "Simpan Profil"; } }
-  }
-  btnSaveProfile?.addEventListener("click", saveProfile);
-
-  async function reauth(currentPass) {
-    const em = auth.currentUser?.email || "";
-    const cred = EmailAuthProvider.credential(em, currentPass || "");
-    await reauthenticateWithCredential(auth.currentUser, cred);
-  }
-
-  btnChangeEmail?.addEventListener("click", async () => {
-    const newEmail = (pfEmailNew?.value || "").trim();
-    const cur = (pfCurPassE?.value || "");
-    if (!newEmail || !cur) { toast("Isi email baru & password saat ini"); return; }
-    try {
-      btnChangeEmail.disabled = true; btnChangeEmail.textContent = "Memproses…";
-      await reauth(cur);
-      await updateEmail(auth.currentUser, newEmail);
-      toast("Email diperbarui");
-      setAccountEmail(auth.currentUser);
-      pfEmailNew.value = ""; pfCurPassE.value = "";
-    } catch (e) { toast("Gagal ganti email"); }
-    finally { btnChangeEmail.disabled = false; btnChangeEmail.textContent = "Ganti Email"; }
-  });
-
-  btnChangePass?.addEventListener("click", async () => {
-    const cur = (pfCurPass?.value || "");
-    const nw = (pfPassNew?.value || "");
-    if (!cur || !nw) { toast("Isi password saat ini & baru"); return; }
-    if (nw.length < 6) { toast("Password baru minimal 6 karakter"); return; }
-    try {
-      btnChangePass.disabled = true; btnChangePass.textContent = "Memproses…";
-      await reauth(cur);
-      await updatePassword(auth.currentUser, nw);
-      toast("Password diperbarui");
-      pfCurPass.value = ""; pfPassNew.value = "";
-    } catch (e) { toast("Gagal ganti password"); }
-    finally { btnChangePass.disabled = false; btnChangePass.textContent = "Ganti Password"; }
-  });
-
-  /* ===== Settings Sync (Local + Remote) ===== */
-  const SETTINGS_PATH = (uid) => `auth/settings/${uid}`;
-  function readLocalSettings() {
-    return {
-      reduce: localStorage.getItem("gx:reduce") === "1",
-      sortExpired: localStorage.getItem("gx:sortExp") === "1",
-      hideGlobal: localStorage.getItem("gx:hideGlobal") === "1",
-      allowSelect: localStorage.getItem("gx:allowSelect") === "1",
-      statusFilter: localStorage.getItem("gx:statusFilter") || "all",
-      updatedAt: parseInt(localStorage.getItem("gx:settingsUpdatedAt") || "0", 10) || 0
-    };
-  }
-  function writeLocalSettings(obj) {
-    localStorage.setItem("gx:reduce", obj.reduce ? "1" : "0");
-    localStorage.setItem("gx:sortExp", obj.sortExpired ? "1" : "0");
-    localStorage.setItem("gx:hideGlobal", obj.hideGlobal ? "1" : "0");
-    localStorage.setItem("gx:allowSelect", obj.allowSelect ? "1" : "0");
-    localStorage.setItem("gx:statusFilter", obj.statusFilter || "all");
-    localStorage.setItem("gx:settingsUpdatedAt", String(obj.updatedAt || Date.now()));
-  }
-  function applySettingsToDOM(obj) {
-    reduce.checked = !!obj.reduce; sortExpired.checked = !!obj.sortExpired;
-    hideGlobal.checked = !!obj.hideGlobal; allowSelect.checked = !!obj.allowSelect;
-    document.body.classList.toggle('reduce', reduce.checked);
-    document.body.classList.toggle('allow-select', allowSelect.checked);
-    globalKeyCard.classList.toggle('hide', hideGlobal.checked);
-    setFilterChip(obj.statusFilter || "all");
-  }
-  applySettingsToDOM(readLocalSettings());
-
-  let pushing = false, remoteReady = false;
-  function currentSettings() {
-    return {
-      reduce: reduce.checked, sortExpired: sortExpired.checked,
-      hideGlobal: hideGlobal.checked, allowSelect: allowSelect.checked,
-      statusFilter: getFilter(), updatedAt: Date.now()
-    };
-  }
-  function pushSettings(uid) {
-    if (!uid) return;
-    const data = currentSettings(); pushing = true;
-    set(ref(db, SETTINGS_PATH(uid)), data).catch(() => { }).finally(() => { pushing = false });
-    writeLocalSettings(data);
-  }
-  function startSettingsSync(uid) {
-    onValue(ref(db, SETTINGS_PATH(uid)), (s) => {
-      const remote = s.val() || {}; const local = readLocalSettings();
-      const rAt = remote.updatedAt || 0, lAt = local.updatedAt || 0;
-      if (pushing) { remoteReady = true; return; }
-      if (rAt === 0 && lAt > 0) { pushSettings(uid); remoteReady = true; return; }
-      if (rAt > lAt) { writeLocalSettings(remote); applySettingsToDOM(remote); }
-      else if (rAt < lAt && remoteReady) { pushSettings(uid); }
-      remoteReady = true;
-    });
-  }
-  let syncTimer = null;
-  function scheduleSync(uid) { clearTimeout(syncTimer); syncTimer = setTimeout(() => pushSettings(uid), 250); }
-  ;[reduce, sortExpired, hideGlobal, allowSelect].forEach(el => {
-    el.addEventListener("change", () => {
-      const data = currentSettings(); applySettingsToDOM(data); writeLocalSettings(data);
-      if (isAuthed()) scheduleSync(auth.currentUser.uid);
-      if (el === sortExpired) render();
-    });
-  });
-
-  /* Data listeners + offline cache */
-  let cache = {}; // { key: {exp:number} }
-  let selfWriteAt = 0;
-  function startData() {
-    stopData();
-    onValue(ref(db, "auth/globalKey"), s => { globalKey.value = s.exists() ? (s.val() || "") : ""; });
-    onValue(ref(db, "auth/keys"), s => {
-      const v = s.val() || {};
-      const serialized = JSON.stringify(v);
-      if (JSON.stringify(cache) !== serialized) {
-        cache = v;
-        try { localStorage.setItem("gx:cacheKeys", serialized); } catch { }
-        render();
-        if (Date.now() - selfWriteAt > 1200) { toast("Data diperbarui"); }
-      }
-    });
-  }
-  function stopData() {
-    try { off(ref(db, "auth/globalKey")); off(ref(db, "auth/keys")); } catch { }
-  }
-  try {
-    const c = localStorage.getItem("gx:cacheKeys"); if (c) { cache = JSON.parse(c); render(); }
-  } catch { }
-
-  /* ===== Email + Avatar + Role ===== */
-  function hueHash(str) {
-    let h = 0; for (let i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) >>> 0; }
-    return h % 360;
-  }
-  function setAccountEmail(u) {
-    const text = (u && u.email) ? u.email : "Belum login";
-    if (acctEmail) acctEmail.textContent = text;
-    if (menuEmail) menuEmail.textContent = text;
-
-    const role = (u && isAuthed()) ? (roleOf(u.uid) || "editor") : "guest";
-    if (menuRole) menuRole.textContent = role;
-
-    const init = (text && text[0] || "?").toUpperCase();
-
-    if (menuAvatar) {
-      menuAvatar.innerHTML = `<span>${init}</span>`;
-      const hue = hueHash(text);
-      menuAvatar.style.background = `hsl(${hue} 35% 22%)`;
-      menuAvatar.style.borderColor = `hsl(${hue} 35% 30%)`;
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content" />
+  <meta name="theme-color" content="#0b0f14" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>GxMods Key Panel</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{height:100%}
+    :root{
+      --bg:#0b0f14;--card:#0f1622;--line:#1a2331;--muted:#9fb1c3;
+      --text:#e6edf3;--pri:#7c3aed;--ok:#19c37d;--warn:#f59e0b;
+      --r:16px; --shadow:0 6px 24px rgba(0,0,0,.28);
+      --bn-h:60px;
     }
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+    body.allow-select{user-select:text;-webkit-user-select:text;-webkit-touch-callout:auto}
+    a{color:inherit;text-decoration:none}
+    .hide{display:none !important}
+    input,textarea{user-select:text;-webkit-user-select:text}
+    body,button,input,select,textarea{color:var(--text)}
+    .btn{color:var(--text)}
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),select,textarea{width:100%;padding:14px;border-radius:12px;background:color-mix(in oklab, var(--card), black 12%);border:1px solid var(--line);outline:none;appearance:none;-webkit-appearance:none;-moz-appearance:none;font-size:16px}
+    input::placeholder,textarea::placeholder{color:#9aa7b3}
+    .topbar{position:sticky;top:0;z-index:60;height:56px;display:flex;align-items:center;gap:12px;padding:0 14px;background:color-mix(in oklab, var(--card), black 4%);border-bottom:1px solid var(--line)}
+    .title{font-weight:700}
+    .grow{flex:1}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);cursor:pointer;transition:transform .08s ease}
+    .btn.ghost{background:transparent}
+    .btn.small{padding:10px 12px;min-height:44px;border-radius:12px;font-weight:600}
+    .btn:active{transform:translateY(1px)}
+    .btn[disabled]{opacity:.6;pointer-events:none}
+    .i{width:18px;height:18px;display:inline-block}
+    .btn .i{margin-right:6px}
+    .drawer{position:fixed;inset:0 auto 0 0;width:min(78%,330px);background:var(--card);border-right:1px solid var(--line);transform:translateX(-100%);transition:transform .16s ease-out;z-index:70;contain:paint;display:flex;flex-direction:column}
+    .drawer.open{transform:translateX(0)}
+    .brand{padding:16px 14px;border-bottom:1px solid var(--line);background:radial-gradient(120px 60px at -10% -10%, rgba(124,58,237,.35), transparent 60%),radial-gradient(160px 80px at 120% 0%, rgba(25,195,125,.28), transparent 60%);display:flex;align-items:center;gap:10px}
+    .brand .logo{width:34px;height:34px;border-radius:12px;background:linear-gradient(135deg,#7c3aed 0%,#19c37d 100%);display:grid;place-items:center;font-weight:800}
+    .brand .logo span{font-size:.95rem;color:white;letter-spacing:.2px}
+    .acct-box{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+    .avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:#243044;border:1px solid #2f3d52}
+    .avatar span{color:#d7e0ea}
+    .acct-meta{min-width:0}
+    .acct-meta .email{font-weight:600;word-break:break-all}
+    .acct-meta .sub{font-size:.82rem;color:var(--muted);display:flex;gap:8px;align-items:center}
+    .role{border:1px solid var(--line);border-radius:999px;padding:2px 6px;font-size:.75rem;color:#c8d2dc}
+    .nav-title{padding:10px 14px;color:var(--muted);font-size:.85rem}
+    .nav{padding:8px;flex:1 1 auto;overflow:auto}
+    .nav a{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:1px solid transparent}
+    .nav a:hover{background:color-mix(in oklab, var(--card), black 8%)}
+    .nav a.active{border-color:#213048;background:color-mix(in oklab, var(--card), black 8%)}
+    .nav .i{opacity:.9}
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .16s ease;z-index:65}
+    .backdrop.show{opacity:1;pointer-events:auto}
+    .drawer-footer{padding:12px 14px;border-top:1px solid var(--line);font-size:.92rem;color:var(--muted);display:flex;justify-content:flex-start;align-items:center}
+    .app{min-height:calc(100dvh - 56px);padding:14px 14px calc(14px + var(--bn-h) + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px}
+    body.noauth .app{padding-bottom:14px}
+    .page{display:none}
+    .page.show{display:grid;gap:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px;display:flex;flex-direction:column;gap:12px}
+    .muted{color:var(--muted);font-size:.95rem}
+    .grid{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))} @media(max-width:560px){.grid{grid-template-columns:1fr}}
+    .list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .item{padding:12px;background:color-mix(in oklab, var(--card), black 2%);border-bottom:1px solid var(--line)}
+    .item:nth-child(2n){background:color-mix(in oklab, var(--card), black 6%)}
+    .item:last-child{border-bottom:none}
+    .row1{display:flex;align-items:center;gap:10px}
+    .row1 .grow{flex:1;min-width:0}
+    .row1 strong{word-break:break-all}
+    .row2{margin-top:4px}
+    .row3{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .pill{padding:3px 8px;border-radius:999px;border:1px solid var(--line);font-size:.8rem;white-space:nowrap}
+    .ok{background:#10221a;border-color:#1f4e39;color:#9de7c4}
+    .soon{background:#2b220c;border-color:#5a4310;color:#ffe5a3}
+    .exp{background:#2a1414;border-color:#5d2a2a;color:#ffc8c8}
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--card);cursor:pointer;user-select:none}
+    .chip.active{outline:2px solid #213048}
+    .switch{display:inline-flex;align-items:center;gap:10px}
+    .switch input{position:absolute;opacity:0;width:0;height:0}
+    .switch .track{width:44px;height:26px;background:#1f2937;border:1px solid var(--line);border-radius:999px;position:relative;transition:background .15s,border-color .15s}
+    .switch .thumb{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#cbd5e1;transition:left .15s,background .15s}
+    .switch input:checked + .track{background:#12211a;border-color:#1f4e39}
+    .switch input:checked + .track .thumb{left:20px;background:#9de7c4}
+    body.noauth .guarded{display:none !important}
+    body.authed .login-only{display:none !important}
+    body.noauth #menuBtn,body.noauth #btnSignOut{display:none !important}
+    body.noauth .topbar,body.noauth #drawer,body.noauth #backdrop,body.noauth #bottomnav{display:none !important}
+    body.booting .page{display:none !important}
+    #boot{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:100;font-size:14px;color:var(--muted)}
+    #toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:color-mix(in oklab, var(--card), black 6%);border:1px solid var(--line);padding:12px 16px;border-radius:12px;box-shadow:var(--shadow);display:none;z-index:99;text-align:center;max-width:min(92vw,520px)}
+    .bottomnav{position:fixed;left:0;right:0;bottom:0;height:var(--bn-h);background:color-mix(in oklab, var(--card), black 4%);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(2,1fr);z-index:55;padding-bottom:env(safe-area-inset-bottom)}
+    .bottomnav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:.85rem;color:var(--muted);position:relative}
+    .bottomnav a .bi{width:22px;height:22px}
+    .bottomnav a.active{color:var(--text)}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:90}
+    .modal.show{display:flex}
+    .modal-card{width:min(92vw,420px);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end}
+    .bar{height:10px;border-radius:999px;background:color-mix(in oklab, var(--card), black 8%);overflow:hidden;border:1px solid var(--line)}
+    .bar > i{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#22c55e)}
+    .mini{display:flex;flex-direction:column;gap:10px}
+    .mini-row{display:flex;align-items:center;gap:10px}
+    .mini-label{min-width:110px;color:var(--muted)}
+    .mini-val{min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+    .mini-bar{flex:1;height:8px;border-radius:999px;background:color-mix(in oklab, var(--card), black 8%);border:1px solid var(--line);overflow:hidden}
+    .mini-bar>i{display:block;height:100%;width:var(--w,0%);background:linear-gradient(90deg,#7c3aed,#19c37d)}
+    .mini-legend{display:flex;gap:10px;flex-wrap:wrap}
+    .mini-legend .pill{font-size:.78rem}
+    .btn.danger{background:#2a1212;border-color:#5d2a2a}
+  </style>
+</head>
+<body class="noauth booting">
+  <header class="topbar">
+    <button id="menuBtn" class="btn" aria-label="Menu" aria-haspopup="true" aria-controls="drawer" aria-expanded="false">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      <span>Menu</span>
+    </button>
+    <div class="title">GxMods Key Panel</div>
+    <div class="grow"></div>
+    <button id="topAvatar" class="avatar btn ghost" aria-label="Akun" style="padding:0;width:36px;height:36px;border-radius:999px"><span>?</span></button>
+  </header>
 
-    const acctEmailEl = $("#acctEmail");
-    if (acctEmailEl) acctEmailEl.textContent = text;
-    if (pfName) pfName.value = (u && u.displayName) || "";
-    if (pfPreview) {
-      const p = u && u.photoURL;
-      if (p) { pfPreview.style.background = `center/cover no-repeat url('${p}')`; pfPreview.innerHTML = ""; }
-      else { pfPreview.style.background = ""; pfPreview.innerHTML = `<span>${init}</span>`; }
+  <aside id="drawer" class="drawer" aria-hidden="true" tabindex="-1">
+    <div class="brand"><div class="logo"><span>Gx</span></div><div style="font-weight:700">Panel</div></div>
+    <div class="acct-box">
+      <div class="avatar" id="menuAvatar"><span>?</span></div>
+      <div class="acct-meta"><div class="email" id="menuEmail">Belum login</div><div class="sub"><span id="menuRole" class="role">guest</span></div></div>
+    </div>
+    <div class="nav-title">Navigasi</div>
+    <nav class="nav" id="nav">
+      <a href="#settings" data-route="settings" data-auth="in">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0A1.65 1.65 0 0 0 9 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0A1.65 1.65 0 0 0 21 12h0a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        <span>Pengaturan</span>
+      </a>
+      <a href="#about" data-route="about">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <span>Tentang</span>
+      </a>
+    </nav>
+    <div class="drawer-footer" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span id="appVersion">v0.0.1 beta</span><button id="drawerLogout" class="btn small">Keluar</button>
+    </div>
+  </aside>
+  <div id="backdrop" class="backdrop"></div>
+
+  <main id="app" class="app">
+    <section class="page guarded" data-page="dashboard">
+      <div class="card">
+        <h3>Ringkasan</h3>
+        <div id="miniStats" class="mini">
+          <div class="mini-row"><div class="mini-label">Total Key</div><div class="mini-val" id="st-total">0</div><div class="mini-bar"><i id="bar-total" style="--w:0%"></i></div></div>
+          <div class="mini-row"><div class="mini-label">Aktif</div><div class="mini-val" id="st-active">0</div><div class="mini-bar"><i id="bar-active" style="--w:0%"></i></div></div>
+          <div class="mini-row"><div class="mini-label">Expired</div><div class="mini-val" id="st-expired">0</div><div class="mini-bar"><i id="bar-expired" style="--w:0%"></i></div></div>
+          <div class="mini-row"><div class="mini-label">Tanpa Exp</div><div class="mini-val" id="st-perm">0</div><div class="mini-bar"><i id="bar-perm" style="--w:0%"></i></div></div>
+          <div class="mini-row"><div class="mini-label">DB Storage (approx)</div><div class="mini-val" id="db-bytes">-</div><div class="mini-bar"><i id="bar-db" style="--w:0%"></i></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page guarded" data-page="keys">
+      <div class="card" id="globalKeyCard">
+        <h3>Global Key</h3>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="globalKey" type="text" placeholder="Kosongkan jika tidak pakai"/>
+          <button id="btnSaveGlobal" class="btn small"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v4h8"/></svg>Simpan</button>
+          <button id="btnClearGlobal" class="btn small"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4h8v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>Hapus</button>
+          <button id="btnShareGlobal" class="btn small ghost"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h7"/><path d="M20 12V5a1 1 0 0 0-1-1h-7"/><path d="M5 12 20 3"/><path d="m5 12 15 9"/></svg>Share</button>
+        </div>
+      </div>
+
+      <div class="card" id="createKeyCard" style="position:relative">
+        <h3 style="text-align:center">Buat Key</h3>
+        <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center">
+          <input id="newKey" type="text" placeholder="Key baru (contoh: vip-xxxx-1234)" style="flex:1;min-width:220px;max-width:560px" autocomplete="off" />
+        </div>
+        <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center">
+          <label class="muted" for="exp">Tanggal kadaluarsa (opsional)</label>
+          <input id="exp" type="date" inputmode="none" placeholder="dd-mm-yyyy" style="max-width:220px"/>
+        </div>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center">
+          <span class="chip" data-add="7">+7 hari</span>
+          <span class="chip" data-add="0">Tanpa Exp</span>
+        </div>
+        <div class="row" style="display:flex;justify-content:center">
+          <button id="btnAdd" class="btn small"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Tambah</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between">
+          <h3 style="margin:0">Daftar Key</h3>
+          <input id="search" type="search" placeholder="Cari key…" style="min-width:160px;max-width:260px" autocomplete="off" />
+        </div>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <span class="chip filter" data-filter="all">Semua</span>
+          <span class="chip filter" data-filter="active">Aktif</span>
+          <span class="chip filter" data-filter="soon">Segera Habis</span>
+          <span class="chip filter" data-filter="expired">Expired</span>
+          <span class="chip filter" data-filter="permanent">Tanpa Exp</span>
+        </div>
+        <div id="keyList" class="list" role="list"></div>
+      </div>
+    </section>
+
+    <section class="page guarded" data-page="settings">
+      <div class="card">
+        <div class="row" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div class="muted">Login sebagai <b id="acctEmail">-</b></div>
+        </div>
+        <h3>Pengaturan</h3>
+        <div class="row" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div><strong>Kurangi efek</strong><span class="muted" style="margin-left:8px">Animasi tetap halus, efek berat diminimalkan.</span></div>
+          <label class="switch"><input id="reduce" type="checkbox"><span class="track"><i class="thumb"></i></span></label>
+        </div>
+        <div class="row" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div><strong>Urutkan expired dulu</strong></div>
+          <label class="switch"><input id="sortExpired" type="checkbox"><span class="track"><i class="thumb"></i></span></label>
+        </div>
+        <div class="row" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div><strong>Sembunyikan Global Key</strong></div>
+          <label class="switch"><input id="hideGlobal" type="checkbox"><span class="track"><i class="thumb"></i></span></label>
+        </div>
+        <div class="row" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div><strong>Izinkan seleksi teks</strong></div>
+          <label class="switch"><input id="allowSelect" type="checkbox"><span class="track"><i class="thumb"></i></span></label>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" data-page="about">
+      <div class="card"><h3>Tentang Panel</h3><p class="muted">Data sinkron lintas perangkat via Firebase Realtime Database. Admin whitelist multi-role didukung.</p></div>
+    </section>
+
+    <section class="page login-only" data-page="login">
+      <div class="card" style="max-width:480px;margin-inline:auto">
+        <h3>Login Admin</h3>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><input id="email" type="email" placeholder="Email" autocomplete="username"></div>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="position:relative;width:100%"><input id="password" type="password" placeholder="Password" autocomplete="current-password"><button id="togglePass" class="btn small" style="position:absolute;right:6px;top:6px">Lihat</button></div>
+        </div>
+        <div class="row" style="display:flex;justify-content:center"><button id="btnLogin" class="btn">Sign In</button></div>
+      </div>
+    </section>
+  </main>
+
+  <nav id="bottomnav" class="bottomnav" role="navigation" aria-label="Navigasi utama">
+    <a href="#dashboard" data-route="dashboard" id="bn-home" aria-current="page"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg><span>Home</span></a>
+    <a href="#keys" data-route="keys" id="bn-keys"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="8" r="3"/><path d="M10 8h10l-2 2 2 2-2 2 2 2"/></svg><span>Daftar Key</span></a>
+  </nav>
+
+  <div id="boot"><span class="muted">Memuat…</span></div>
+  <div id="toast"></div>
+
+  <div id="modalDateWrap" class="modal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h3 id="modalTitle">Set Tanggal Kadaluarsa</h3>
+      <div class="muted">Format: <b>Tanggal Bulan Tahun</b></div>
+      <input id="modalDate" type="date" inputmode="none">
+      <div class="modal-actions"><button id="modalCancel" class="btn ghost">Batal</button><button id="modalSave" class="btn">Simpan</button></div>
+    </div>
+  </div>
+
+  <div id="modalConfirmWrap" class="modal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <h3 id="confirmTitle">Konfirmasi</h3>
+      <div id="confirmMsg" class="muted">Yakin?</div>
+      <div class="modal-actions"><button id="confirmCancel" class="btn ghost">Batal</button><button id="confirmOk" class="btn">Lanjut</button></div>
+    </div>
+  </div>
+
+  <script type="module">
+    /* ===== Versi ===== */
+    const APP_VERSION="v0.0.1 beta";
+    document.addEventListener("DOMContentLoaded",()=>{ const v=document.getElementById("appVersion"); if(v) v.textContent=APP_VERSION; });
+
+    /* ===== Firebase ===== */
+    // Whitelist lokal: 3 UID (dua dari kamu + satu dari file awal)
+    const ADMIN_UIDS=["dqFIuPQY1PfYvcLdkrxztZEDkkl1","nIGjiue818WwLCjEsSUZX3OLtan1","4CCiNyEyTvSUPnY6Ugd9PzAU1df2"];
+    const firebaseConfig={
+      apiKey:"AIzaSyAJ2YitGgxTI8k440TmWUHgntkTLSqkX3c",
+      authDomain:"dialog-vip-only-key.firebaseapp.com",
+      databaseURL:"https://dialog-vip-only-key-default-rtdb.firebaseio.com",
+      projectId:"dialog-vip-only-key",
+      storageBucket:"dialog-vip-only-key.firebasestorage.app",
+      messagingSenderId:"405714783893",
+      appId:"1:405714783893:web:9cf697f2104b91958ed59c",
+      measurementId:"G-YKCTBR2857"
+    };
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+    import { getDatabase, ref, onValue, set, update, remove, off, get } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+
+    const app=initializeApp(firebaseConfig);
+    const auth=getAuth(app);
+    setPersistence(auth,browserLocalPersistence).catch(()=>{});
+    const db=getDatabase(app);
+
+    /* ===== Utils ===== */
+    const $=(s,el=document)=>el.querySelector(s);
+    const $$=(s,el=document)=>el.querySelectorAll(s);
+    const toastEl=$("#toast"); let toastTimer=null;
+    const toast=(t)=>{ toastEl.textContent=t; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1500); };
+    const fmtDate=(ms)=>ms?new Date(ms).toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"}):"Permanen";
+    const toEOD=(Y,M,D)=>new Date(Y,M-1,D,23,59,59,999).getTime();
+    const fromInputDate=(v)=>{const [Y,M,D]=v.split("-").map(n=>parseInt(n,10));return {Y,M,D};};
+    const sanitizeKey=(k)=>(k||"").normalize("NFKC").replace(/\s+/g,"").replace(/[^\w\-.:@]/g,"");
+    const protectedRoutes=new Set(["dashboard","keys","settings"]);
+
+    /* ===== Drawer (null-safe) ===== */
+    const menuBtn=$("#menuBtn");
+    const drawer=$("#drawer");
+    const backdrop=$("#backdrop");
+    if(drawer){ drawer.setAttribute("aria-hidden","true"); try{ drawer.inert=true; }catch{} }
+    function openDrawer(){
+      if(!drawer||!backdrop||!menuBtn) return;
+      drawer.classList.add("open"); backdrop.classList.add("show");
+      drawer.removeAttribute("aria-hidden"); try{ drawer.inert=false; }catch{}
+      menuBtn.setAttribute("aria-expanded","true");
+      const first=drawer.querySelector(".nav a")||drawer; (first instanceof HTMLElement?first:drawer).focus();
     }
-  }
+    function closeDrawer(){
+      if(!drawer||!backdrop||!menuBtn) return;
+      if(drawer.contains(document.activeElement)) menuBtn.focus();
+      drawer.classList.remove("open"); backdrop.classList.remove("show");
+      drawer.setAttribute("aria-hidden","true"); try{ drawer.inert=true; }catch{}
+      menuBtn.setAttribute("aria-expanded","false");
+    }
+    if(menuBtn) menuBtn.onclick=openDrawer;
+    if(backdrop) backdrop.onclick=closeDrawer;
+    document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"&&drawer&&drawer.classList.contains("open")){ e.preventDefault(); closeDrawer(); }});
 
-  /* ===== Auth state ===== */
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      startSettingsSync(user.uid);
-      updateNav(true);
-      startData();
-      setAccountEmail(user);
-      route(localStorage.getItem("gx:route") || "dashboard");
-    } else {
+    /* ===== Multi-admin (RTDB) ===== */
+    let ADMINS={};
+    onValue(ref(db,"auth/admins"), s=>{ ADMINS=s.val()||{}; try{ updateNav(isAuthed()); }catch{} try{ render(); }catch{} });
+    const isAuthed=()=>{ const u=auth.currentUser; return !!u && (ADMIN_UIDS.includes(u.uid) || !!ADMINS[u.uid]); };
+    const roleOf=(uid)=> ADMIN_UIDS.includes(uid) ? "owner" : (ADMINS?.[uid]===true?"owner":(ADMINS?.[uid]||null));
+    const canEdit=()=>{ const u=auth.currentUser; if(!u) return false; const r=roleOf(u.uid); return !!r && r!=="viewer"; };
+
+    /* ===== Routing ===== */
+    function hardGuard(name){ return protectedRoutes.has(name)&&!isAuthed() ? "login" : name; }
+    function updateBottomNav(name){ $$("#bottomnav a").forEach(a=>{ const active=a.dataset.route===name; a.classList.toggle("active",active); a.setAttribute("aria-current",active?"page":"false"); }); }
+    function route(name){
+      name=hardGuard(name);
+      $$(".page").forEach(p=>p.classList.toggle("show",p.dataset.page===name));
+      $$(".nav a").forEach(a=>a.classList.toggle("active",a.dataset.route===name));
+      updateBottomNav(name);
+      if(isAuthed()){ localStorage.setItem("gx:route",name); } else { localStorage.removeItem("gx:route"); }
+      closeDrawer();
+      try{ document.scrollingElement.scrollTo({top:0,behavior:"smooth"}); }catch{}
+    }
+    $$(".nav a").forEach(a=>a.onclick=(e)=>{ e.preventDefault(); route(a.dataset.route); });
+    $$("#bottomnav a").forEach(a=>a.addEventListener("click",(e)=>{ e.preventDefault(); route(a.dataset.route); },{passive:false}));
+
+    /* ===== UI refs ===== */
+    const globalKey=$("#globalKey"), btnSaveGlobal=$("#btnSaveGlobal"), btnClearGlobal=$("#btnClearGlobal"), btnShareGlobal=$("#btnShareGlobal");
+    const newKey=$("#newKey"), exp=$("#exp"), btnAdd=$("#btnAdd");
+    const keyList=$("#keyList"), search=$("#search");
+    const sortExpired=$("#sortExpired"), hideGlobal=$("#hideGlobal"), allowSelect=$("#allowSelect"), reduce=$("#reduce");
+    const email=$("#email"), password=$("#password"), btnLogin=$("#btnLogin");
+    const topAvatar=$("#topAvatar"), drawerLogout=$("#drawerLogout");
+    const globalKeyCard=$("#globalKeyCard");
+    const acctEmail=$("#acctEmail"), menuEmail=$("#menuEmail"), menuRole=$("#menuRole"), menuAvatar=$("#menuAvatar");
+    if(topAvatar) topAvatar.addEventListener("click",openDrawer);
+    if(drawerLogout) drawerLogout.addEventListener("click",()=>{ signOut(auth).catch(()=>{}); });
+
+    /* ===== Settings Sync ===== */
+    const SETTINGS_PATH=(uid)=>`auth/settings/${uid}`;
+    function readLocalSettings(){ return { reduce:localStorage.getItem("gx:reduce")==="1", sortExpired:localStorage.getItem("gx:sortExp")==="1", hideGlobal:localStorage.getItem("gx:hideGlobal")==="1", allowSelect:localStorage.getItem("gx:allowSelect")==="1", statusFilter:localStorage.getItem("gx:statusFilter")||"all", updatedAt:parseInt(localStorage.getItem("gx:settingsUpdatedAt")||"0",10)||0 }; }
+    function writeLocalSettings(o){ localStorage.setItem("gx:reduce",o.reduce?"1":"0"); localStorage.setItem("gx:sortExp",o.sortExpired?"1":"0"); localStorage.setItem("gx:hideGlobal",o.hideGlobal?"1":"0"); localStorage.setItem("gx:allowSelect",o.allowSelect?"1":"0"); localStorage.setItem("gx:statusFilter",o.statusFilter||"all"); localStorage.setItem("gx:settingsUpdatedAt",String(o.updatedAt||Date.now())); }
+    function applySettingsToDOM(o){
+      if(reduce) reduce.checked=!!o.reduce; if(sortExpired) sortExpired.checked=!!o.sortExpired; if(hideGlobal) hideGlobal.checked=!!o.hideGlobal; if(allowSelect) allowSelect.checked=!!o.allowSelect;
+      document.body.classList.toggle('reduce',!!(reduce&&reduce.checked));
+      document.body.classList.toggle('allow-select',!!(allowSelect&&allowSelect.checked));
+      if(globalKeyCard&&hideGlobal) globalKeyCard.classList.toggle('hide', hideGlobal.checked);
+      setFilterChip(o.statusFilter||"all");
+    }
+    applySettingsToDOM(readLocalSettings());
+    let pushing=false, remoteReady=false;
+    function currentSettings(){ return { reduce:!!(reduce&&reduce.checked), sortExpired:!!(sortExpired&&sortExpired.checked), hideGlobal:!!(hideGlobal&&hideGlobal.checked), allowSelect:!!(allowSelect&&allowSelect.checked), statusFilter:getFilter(), updatedAt:Date.now() }; }
+    function pushSettings(uid){ if(!uid) return; const data=currentSettings(); pushing=true; set(ref(db,SETTINGS_PATH(uid)),data).catch(()=>{}).finally(()=>{pushing=false}); writeLocalSettings(data); }
+    function startSettingsSync(uid){
+      onValue(ref(db,SETTINGS_PATH(uid)),(s)=>{
+        const remote=s.val()||{}, local=readLocalSettings();
+        const rAt=remote.updatedAt||0, lAt=local.updatedAt||0;
+        if(pushing){ remoteReady=true; return; }
+        if(rAt===0 && lAt>0){ pushSettings(uid); remoteReady=true; return; }
+        if(rAt>lAt){ writeLocalSettings(remote); applySettingsToDOM(remote); }
+        else if(rAt<lAt && remoteReady){ pushSettings(uid); }
+        remoteReady=true;
+      });
+    }
+    let syncTimer=null; function scheduleSync(uid){ clearTimeout(syncTimer); syncTimer=setTimeout(()=>pushSettings(uid),250); }
+    [reduce,sortExpired,hideGlobal,allowSelect].forEach(el=>{ if(!el) return; el.addEventListener("change",()=>{ const d=currentSettings(); applySettingsToDOM(d); writeLocalSettings(d); if(isAuthed()) scheduleSync(auth.currentUser.uid); if(el===sortExpired) render(); }); });
+
+    /* ===== Data ===== */
+    let cache={}; let selfWriteAt=0;
+    function startData(){
       stopData();
-      updateNav(false);
-      route("login");
-      setAccountEmail(null);
+      onValue(ref(db,"auth/globalKey"), s=>{ if(globalKey) globalKey.value = s.exists()? (s.val()||"") : ""; });
+      onValue(ref(db,"auth/keys"), s=>{
+        const v=s.val()||{}; const serialized=JSON.stringify(v);
+        if(JSON.stringify(cache)!==serialized){ cache=v; try{ localStorage.setItem("gx:cacheKeys",serialized); }catch{} render(); if(Date.now()-selfWriteAt>1200) toast("Data diperbarui"); }
+      });
     }
-    document.body.classList.remove("booting");
-    $("#boot")?.remove();
-  });
+    function stopData(){ try{ off(ref(db,"auth/globalKey")); off(ref(db,"auth/keys")); }catch{} }
+    try{ const c=localStorage.getItem("gx:cacheKeys"); if(c){ cache=JSON.parse(c); render(); } }catch{}
 
-  /* ===== Nav & Permissions ===== */
-  function updateNav(authed) {
-    document.body.classList.toggle("authed", !!authed);
-    document.body.classList.toggle("noauth", !authed);
-    btnSignOut.classList.toggle("hide", !authed);
-
-    const editable = canEdit();
-    // Tombol yang mengubah data hanya aktif jika editor/owner
-    btnAdd.disabled = !editable;
-    btnSaveGlobal.disabled = !editable;
-    btnClearGlobal.disabled = !editable;
-    btnShareGlobal.disabled = !editable ? true : false; // share boleh kalau ada data, tapi kita samain saja
-  }
-
-  /* ===== Login UX ===== */
-  $("#togglePass").addEventListener("click", () => {
-    const pw = $("#password"); const t = pw.getAttribute("type") === "password" ? "text" : "password";
-    pw.setAttribute("type", t); $("#togglePass").textContent = (t === "password" ? "Lihat" : "Sembunyikan"); pw.focus();
-  });
-  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && $(".page.show")?.dataset.page === "login") { btnLogin.click(); } });
-  btnLogin.addEventListener("click", async () => {
-    const em = (email.value || "").trim(); const pw = password.value || "";
-    if (!em || !pw) { toast("Isi email & password"); return; }
-    try { btnLogin.disabled = true; btnLogin.textContent = "Masuk…"; await signInWithEmailAndPassword(auth, em, pw); toast("Login sukses"); }
-    catch { toast("Login gagal"); }
-    finally { btnLogin.disabled = false; btnLogin.textContent = "Sign In"; }
-  });
-  btnSignOut.onclick = async () => { try { btnSignOut.disabled = true; await signOut(auth); toast("Signed out"); route("login"); } catch { } finally { btnSignOut.disabled = false; } };
-
-  /* ===== Anti salin di luar input ===== */
-  const allowCtx = (el) => !!el && (el.closest('input,textarea,[contenteditable="true"]'));
-  document.addEventListener('copy', e => { if (!document.body.classList.contains('allow-select') && !allowCtx(document.activeElement)) e.preventDefault(); });
-  document.addEventListener('cut', e => { if (!document.body.classList.contains('allow-select') && !allowCtx(e.target)) e.preventDefault(); });
-  document.addEventListener('contextmenu', e => { if (!document.body.classList.contains('allow-select') && !allowCtx(e.target)) e.preventDefault(); }, { passive: false });
-
-  /* ===== Filter status chips ===== */
-  function getFilter() { return localStorage.getItem("gx:statusFilter") || "all"; }
-  function setFilterChip(val) {
-    localStorage.setItem("gx:statusFilter", val);
-    $$(".chip.filter").forEach(c => c.classList.toggle("active", c.dataset.filter === val));
-  }
-  document.addEventListener("click", (e) => {
-    const f = e.target.closest(".chip.filter"); if (!f) return;
-    const val = f.dataset.filter; setFilterChip(val); render();
-    if (isAuthed()) scheduleSync(auth.currentUser.uid);
-  });
-
-  /* ===== Modal Set Tanggal ===== */
-  const modalDateWrap = $("#modalDateWrap"), modalDate = $("#modalDate"), modalSave = $("#modalSave"), modalCancel = $("#modalCancel");
-  let modalKey = null;
-  function openModalSetDate(key, currMs) {
-    modalKey = key;
-    const d = currMs ? new Date(currMs) : new Date();
-    const pad = n => String(n).padStart(2, "0");
-    modalDate.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    modalDateWrap.classList.add("show"); modalDateWrap.setAttribute("aria-hidden", "false");
-    modalDate.focus();
-  }
-  function closeModalDate() { modalKey = null; modalDateWrap.classList.remove("show"); modalDateWrap.setAttribute("aria-hidden", "true"); }
-  modalCancel.onclick = closeModalDate;
-  modalDateWrap.addEventListener("click", (e) => { if (e.target === modalDateWrap) closeModalDate(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modalDateWrap.classList.contains("show")) closeModalDate(); });
-  modalSave.onclick = async () => {
-    if (!modalKey) return closeModalDate();
-    const v = (modalDate.value || "").trim(); if (!v) return closeModalDate();
-    const { Y, M, D } = fromInputDate(v); const ms = toEOD(Y, M, D);
-    selfWriteAt = Date.now();
-    await update(ref(db, "auth/keys/" + modalKey), { exp: ms });
-    toast("Tanggal di-set"); closeModalDate();
-  };
-
-  /* ===== Modal Konfirmasi ===== */
-  const modalConfirmWrap = $("#modalConfirmWrap"), confirmMsg = $("#confirmMsg"), confirmOk = $("#confirmOk"), confirmCancel = $("#confirmCancel");
-  let confirmResolver = null;
-  function confirmDialog(msg = "Yakin?") {
-    confirmMsg.textContent = msg;
-    modalConfirmWrap.classList.add("show"); modalConfirmWrap.setAttribute("aria-hidden", "false");
-    return new Promise((res) => {
-      confirmResolver = (v) => { modalConfirmWrap.classList.remove("show"); modalConfirmWrap.setAttribute("aria-hidden", "true"); res(v); };
-    });
-  }
-  confirmCancel.onclick = () => confirmResolver && confirmResolver(false);
-  confirmOk.onclick = () => confirmResolver && confirmResolver(true);
-  modalConfirmWrap.addEventListener("click", (e) => { if (e.target === modalConfirmWrap) confirmResolver && confirmResolver(false); });
-
-  /* ===== Mini Analytics (Home) ===== */
-  function calcStats() {
-    const ks = Object.keys(cache || {});
-    const now = Date.now();
-    let total = ks.length, perm = 0, expired = 0, active = 0;
-    for (const k of ks) {
-      const e = cache[k]?.exp || 0;
-      if (e === 0) { perm++; continue; }
-      if (now > e) { expired++; } else { active++; }
+    /* ===== Email + Avatar + Role ===== */
+    function hueHash(str){ let h=0; for(let i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))>>>0; } return h%360; }
+    function setAccountEmail(u){
+      const text=(u&&u.email)?u.email:"Belum login";
+      if(acctEmail) acctEmail.textContent=text;
+      if(menuEmail) menuEmail.textContent=text;
+      const role=(u&&isAuthed())?(roleOf(u.uid)||"editor"):"guest";
+      if(menuRole) menuRole.textContent=role;
+      const init=(text&&text[0]||"?").toUpperCase();
+      if(menuAvatar){ menuAvatar.innerHTML=`<span>${init}</span>`; const hue=hueHash(text); menuAvatar.style.background=`hsl(${hue} 35% 22%)`; menuAvatar.style.borderColor=`hsl(${hue} 35% 30%)`; }
+      if(topAvatar){ const hue=hueHash(text); const init2=(text&&text[0]||"?").toUpperCase(); topAvatar.innerHTML=`<span style="font-weight:700">${init2}</span>`; topAvatar.style.background=`hsl(${hue} 35% 22%)`; topAvatar.style.border="1px solid"; topAvatar.style.borderColor=`hsl(${hue} 35% 30%)`; }
     }
-    return { total, active, expired, perm };
-  }
-  function setBar(id, val, pct) {
-    const valEl = document.getElementById("st-" + id);
-    const barEl = document.getElementById("bar-" + id);
-    if (valEl) valEl.textContent = String(val);
-    if (barEl) barEl.style.setProperty("--w", (pct || 0).toFixed(1) + "%");
-  }
-  function updateAnalytics() {
-    const s = calcStats();
-    const denom = Math.max(s.total, 1);
-    setBar("total", s.total, s.total > 0 ? 100 : 0);
-    setBar("active", s.active, (s.active / denom) * 100);
-    setBar("expired", s.expired, (s.expired / denom) * 100);
-    setBar("perm", s.perm, (s.perm / denom) * 100);
-  }
 
-  /* ===== Render list ===== */
-  function iconSVG(name) {
-    switch (name) {
-      case "noexp": return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 0 1 7-7c1.9 0 3.6.78 4.83 2.05"/><path d="M19 12a7 7 0 0 1-7 7c-1.9 0-3.6-.78-4.83-2.05"/><path d="M22 2 2 22"/></svg>';
-      case "setdate": return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>';
-      case "share": return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51 15.42 17.49"/><path d="M15.41 6.51 8.59 10.49"/></svg>';
-      case "del": return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4h8v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
-      default: return '';
-    }
-  }
-
-  function render() {
-    const ks = Object.keys(cache || {});
-    const now = Date.now();
-
-    keyList.innerHTML = "";
-    const q = (search?.value || "").trim().toUpperCase();
-    const filt = getFilter();
-    const frag = document.createDocumentFragment();
-
-    const sorted = ks.sort((a, b) => {
-      if (sortExpired.checked) {
-        const ea = (cache[a]?.exp || 0) && now > (cache[a].exp);
-        const eb = (cache[b]?.exp || 0) && now > (cache[b].exp);
-        if (ea !== eb) return eb - ea; // expired dulu
+    /* ===== Auth ===== */
+    onAuthStateChanged(auth,(user)=>{
+      if(user && isAuthed()){
+        startSettingsSync(user.uid);
+        updateNav(true); startData(); setAccountEmail(user);
+        route(localStorage.getItem("gx:route")||"dashboard"); refreshLocalDbUsage();
+      }else{
+        stopData(); updateNav(false); route("login"); setAccountEmail(null);
+        if(user && !isAuthed()){ signOut(auth).catch(()=>{}); toast("Bukan admin"); }
       }
-      return a.localeCompare(b);
+      document.body.classList.remove("booting"); document.getElementById("boot")?.remove();
     });
-
-    for (const k of sorted) {
-      const expMs = cache[k]?.exp || 0;
-      const expired = expMs && now > expMs;
-      const soon = !expired && expMs && (expMs - now) <= (5 * 864e5);
-      const permanent = expMs === 0;
-
-      if (filt === "active" && expired) continue;
-      if (filt === "soon" && !soon) continue;
-      if (filt === "expired" && !expired) continue;
-      if (filt === "permanent" && !permanent) continue;
-
-      if (q && !k.toUpperCase().includes(q)) continue;
-
-      const row = document.createElement("div"); row.className = "item";
-
-      const head = document.createElement("div"); head.className = "row1";
-      const keySpan = document.createElement("strong"); keySpan.className = "grow"; keySpan.textContent = k;
-
-      const copyBtn = document.createElement("button"); copyBtn.className = "btn small"; copyBtn.setAttribute("aria-label", "Copy key");
-      copyBtn.dataset.key = k; copyBtn.dataset.action = "copy";
-      copyBtn.innerHTML = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy';
-
-      const status = document.createElement("span"); status.className = "pill " + (expired ? "exp" : (soon ? "soon" : "ok"));
-      status.textContent = expired ? "Expired" : (soon ? "Segera Habis" : "Aktif");
-
-      head.appendChild(keySpan);
-      head.appendChild(copyBtn);
-      head.appendChild(status);
-
-      const sub = document.createElement("div"); sub.className = "row2 muted";
-      sub.textContent = "Expire: " + fmtDate(expMs);
-
-      const actions = document.createElement("div"); actions.className = "row3";
-      const mk = (label, action, extraClass = "") => {
-        const b = document.createElement("button"); b.className = "btn small" + (extraClass ? (" " + extraClass) : "");
-        b.dataset.key = k; b.dataset.action = action;
-        b.innerHTML = iconSVG(action) + label;
-        return b;
-      };
-      const btnNoExp = mk("No Exp", "noexp");
-      const btnDate = mk("Tanggal…", "setdate");
-      const btnShare = mk("Share", "share");
-      const del = mk("Hapus", "del", "danger");
-
-      actions.appendChild(btnNoExp);
-      actions.appendChild(btnDate);
-      actions.appendChild(btnShare);
-      actions.appendChild(del);
-
-      row.appendChild(head); row.appendChild(sub); row.appendChild(actions);
-      frag.appendChild(row);
+    function updateNav(authed){
+      document.body.classList.toggle("authed",!!authed);
+      document.body.classList.toggle("noauth",!authed);
+      if(topAvatar) topAvatar.classList.toggle("hide",!authed);
+      const editable=canEdit();
+      if(btnAdd) btnAdd.disabled=!editable;
+      if(btnSaveGlobal) btnSaveGlobal.disabled=!editable;
+      if(btnClearGlobal) btnClearGlobal.disabled=!editable;
+      if(btnShareGlobal) btnShareGlobal.disabled=!editable;
     }
 
-    if (!frag.childNodes.length) {
-      const empty = document.createElement("div"); empty.className = "item"; empty.innerHTML = '<span class="muted">Tidak ada hasil.</span>'; frag.appendChild(empty);
+    /* ===== Login UX ===== */
+    const togglePass=$("#togglePass");
+    if(togglePass) togglePass.addEventListener("click",()=>{ const pw=$("#password"); if(!pw) return; const t=pw.getAttribute("type")==="password"?"text":"password"; pw.setAttribute("type",t); togglePass.textContent=(t==="password"?"Lihat":"Sembunyikan"); pw.focus(); });
+    document.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && $(".page.show")?.dataset.page==="login"){ btnLogin?.click(); }});
+    if(btnLogin) btnLogin.addEventListener("click",async ()=>{ const em=(email?.value||"").trim(); const pw=password?.value||""; if(!em||!pw){ toast("Isi email & password"); return; } try{ btnLogin.disabled=true; btnLogin.textContent="Masuk…"; await signInWithEmailAndPassword(auth,em,pw); toast("Login sukses"); }catch{ toast("Login gagal"); }finally{ btnLogin.disabled=false; btnLogin.textContent="Sign In"; } });
+
+    /* ===== Anti salin ===== */
+    const allowCtx=(el)=>!!el&&(el.closest('input,textarea,[contenteditable="true"]'));
+    document.addEventListener('copy',e=>{ if(!document.body.classList.contains('allow-select')&&!allowCtx(document.activeElement)) e.preventDefault(); });
+    document.addEventListener('cut', e=>{ if(!document.body.classList.contains('allow-select')&&!allowCtx(e.target)) e.preventDefault(); });
+    document.addEventListener('contextmenu', e=>{ if(!document.body.classList.contains('allow-select')&&!allowCtx(e.target)) e.preventDefault(); }, {passive:false});
+
+    /* ===== Filter chips ===== */
+    function getFilter(){ return localStorage.getItem("gx:statusFilter")||"all"; }
+    function setFilterChip(val){ localStorage.setItem("gx:statusFilter",val); $$(".chip.filter").forEach(c=>c.classList.toggle("active",c.dataset.filter===val)); }
+    document.addEventListener("click",(e)=>{ const f=e.target.closest(".chip.filter"); if(!f) return; const val=f.dataset.filter; setFilterChip(val); render(); if(isAuthed()) scheduleSync(auth.currentUser.uid); });
+
+    /* ===== Modal Set Tanggal ===== */
+    const modalDateWrap=$("#modalDateWrap"), modalDate=$("#modalDate"), modalSave=$("#modalSave"), modalCancel=$("#modalCancel"); let modalKey=null;
+    function openModalSetDate(key,currMs){ if(!modalDateWrap||!modalDate) return; modalKey=key; const d=currMs?new Date(currMs):new Date(); const pad=n=>String(n).padStart(2,"0"); modalDate.value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; modalDateWrap.classList.add("show"); modalDateWrap.setAttribute("aria-hidden","false"); modalDate.focus(); }
+    function closeModalDate(){ if(!modalDateWrap) return; modalKey=null; modalDateWrap.classList.remove("show"); modalDateWrap.setAttribute("aria-hidden","true"); }
+    if(modalCancel) modalCancel.onclick=closeModalDate;
+    if(modalDateWrap) modalDateWrap.addEventListener("click",(e)=>{ if(e.target===modalDateWrap) closeModalDate(); });
+    document.addEventListener("keydown",(e)=>{ if(e.key==="Escape" && modalDateWrap?.classList.contains("show")) closeModalDate(); });
+    if(modalSave) modalSave.onclick=async ()=>{ if(!modalKey) return closeModalDate(); const v=(modalDate?.value||"").trim(); if(!v) return closeModalDate(); const {Y,M,D}=fromInputDate(v); const ms=toEOD(Y,M,D); selfWriteAt=Date.now(); await update(ref(db,"auth/keys/"+modalKey),{exp:ms}); toast("Tanggal di-set"); closeModalDate(); };
+
+    /* ===== Modal Konfirmasi ===== */
+    const modalConfirmWrap=$("#modalConfirmWrap"), confirmMsg=$("#confirmMsg"), confirmOk=$("#confirmOk"), confirmCancel=$("#confirmCancel"); let confirmResolver=null;
+    function confirmDialog(msg="Yakin?"){ if(!modalConfirmWrap||!confirmMsg) return Promise.resolve(false); confirmMsg.textContent=msg; modalConfirmWrap.classList.add("show"); modalConfirmWrap.setAttribute("aria-hidden","false"); return new Promise((res)=>{ confirmResolver=(v)=>{ modalConfirmWrap.classList.remove("show"); modalConfirmWrap.setAttribute("aria-hidden","true"); res(v); }; }); }
+    if(confirmCancel) confirmCancel.onclick=()=>confirmResolver&&confirmResolver(false);
+    if(confirmOk) confirmOk.onclick=()=>confirmResolver&&confirmResolver(true);
+    if(modalConfirmWrap) modalConfirmWrap.addEventListener("click",(e)=>{ if(e.target===modalConfirmWrap) confirmResolver&&confirmResolver(false); });
+
+    /* ===== Mini Analytics ===== */
+    function calcStats(){ const ks=Object.keys(cache||{}); const now=Date.now(); let total=ks.length,perm=0,expired=0,active=0; for(const k of ks){ const e=cache[k]?.exp||0; if(e===0){perm++;continue;} if(now>e){expired++;}else{active++;} } return {total,active,expired,perm}; }
+    function setBar(id,val,pct){ const valEl=document.getElementById("st-"+id); const barEl=document.getElementById("bar-"+id); if(valEl) valEl.textContent=String(val); if(barEl) barEl.style.setProperty("--w",(pct||0).toFixed(1)+"%"); }
+    function updateAnalytics(){ const s=calcStats(); const denom=Math.max(s.total,1); setBar("total",s.total,s.total>0?100:0); setBar("active",s.active,(s.active/denom)*100); setBar("expired",s.expired,(s.expired/denom)*100); setBar("perm",s.perm,(s.perm/denom)*100); }
+
+    /* ===== DB usage approx ===== */
+    function humanBytes(n){ const u=["B","KB","MB","GB","TB"]; let i=0,v=Math.max(n||0,0); while(v>=1024 && i<u.length-1){ v/=1024; i++; } return `${v.toFixed(v<10&&i>0?1:0)}${u[i]}`; }
+    function setUsage(elId,barId,val,denom){ const el=document.getElementById(elId),bar=document.getElementById(barId); if(el) el.textContent=humanBytes(val); if(bar) bar.style.setProperty("--w",Math.min(100,(val/Math.max(denom,1))*100).toFixed(1)+"%"); }
+    async function refreshLocalDbUsage(){ try{ const snap=await get(ref(db)); const size=new Blob([JSON.stringify(snap.val()||{})]).size; setUsage("db-bytes","bar-db",size,1024*1024); }catch(e){} }
+
+    /* ===== Render list ===== */
+    function iconSVG(name){ switch(name){ case "noexp":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 0 1 7-7c1.9 0 3.6.78 4.83 2.05"/><path d="M19 12a7 7 0 0 1-7 7c-1.9 0-3.6-.78-4.83-2.05"/><path d="M22 2 2 22"/></svg>'; case "setdate":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>'; case "share":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51 15.42 17.49"/><path d="M15.41 6.51 8.59 10.49"/></svg>'; case "del":return '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4h8v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>'; default:return ''; } }
+    function render(){
+      if(!keyList) return;
+      const ks=Object.keys(cache||{}); const now=Date.now();
+      keyList.innerHTML=""; const q=(search?.value||"").trim().toUpperCase(); const filt=getFilter(); const frag=document.createDocumentFragment();
+      const sorted=ks.sort((a,b)=>{ if(sortExpired?.checked){ const ea=(cache[a]?.exp||0)&&now>(cache[a].exp); const eb=(cache[b]?.exp||0)&&now>(cache[b].exp); if(ea!==eb) return eb-ea; } return a.localeCompare(b); });
+      for(const k of sorted){
+        const expMs=cache[k]?.exp||0, expired=expMs && now>expMs, soon=!expired && expMs && (expMs-now)<=5*864e5, permanent=expMs===0;
+        if(filt==="active"&&expired) continue;
+        if(filt==="soon"&&!soon) continue;
+        if(filt==="expired"&&!expired) continue;
+        if(filt==="permanent"&&!permanent) continue;
+        if(q && !k.toUpperCase().includes(q)) continue;
+
+        const row=document.createElement("div"); row.className="item";
+        const head=document.createElement("div"); head.className="row1";
+        const keySpan=document.createElement("strong"); keySpan.className="grow"; keySpan.textContent=k;
+        const copyBtn=document.createElement("button"); copyBtn.className="btn small"; copyBtn.setAttribute("aria-label","Copy key"); copyBtn.dataset.key=k; copyBtn.dataset.action="copy"; copyBtn.innerHTML='<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy';
+        const status=document.createElement("span"); status.className="pill "+(expired?"exp":(soon?"soon":"ok")); status.textContent=expired?"Expired":(soon?"Segera Habis":"Aktif");
+        head.appendChild(keySpan); head.appendChild(copyBtn); head.appendChild(status);
+
+        const sub=document.createElement("div"); sub.className="row2 muted"; sub.textContent="Expire: "+fmtDate(expMs);
+
+        const actions=document.createElement("div"); actions.className="row3";
+        const mk=(label,action,extraClass="")=>{ const b=document.createElement("button"); b.className="btn small"+(extraClass?(" "+extraClass):""); b.dataset.key=k; b.dataset.action=action; b.innerHTML=iconSVG(action)+label; return b; };
+        const btnNoExp=mk("No Exp","noexp"); const btnDate=mk("Tanggal…","setdate"); const btnShare=mk("Share","share"); const del=mk("Hapus","del","danger");
+        actions.appendChild(btnNoExp); actions.appendChild(btnDate); actions.appendChild(btnShare); actions.appendChild(del);
+
+        row.appendChild(head); row.appendChild(sub); row.appendChild(actions); frag.appendChild(row);
+      }
+      if(!frag.childNodes.length){ const empty=document.createElement("div"); empty.className="item"; empty.innerHTML='<span class="muted">Tidak ada hasil.</span>'; frag.appendChild(empty); }
+      keyList.appendChild(frag); updateAnalytics();
     }
-    keyList.appendChild(frag);
 
-    updateAnalytics();
-  }
+    /* ===== Key actions ===== */
+    document.addEventListener("click",(e)=>{
+      const b=e.target.closest("button[data-action]"); if(!b) return;
+      const k=b.dataset.key,act=b.dataset.action;
+      (async()=>{ try{
+        if(act==="copy"){ await navigator.clipboard.writeText(k); toast("Disalin"); }
+        else if(act==="share"){ const text=`KEY: ${k}`; if(navigator.share){ try{ await navigator.share({title:"GxMods Key",text}); }catch{} } else { await navigator.clipboard.writeText(text); toast("Disalin (share tidak didukung)"); } }
+        else if(act==="noexp"){ selfWriteAt=Date.now(); await update(ref(db,"auth/keys/"+k),{exp:0}); toast("No Exp"); }
+        else if(act==="setdate"){ openModalSetDate(k,cache[k]?.exp||0); }
+        else if(act==="del"){ const ok=await confirmDialog(`Hapus key: ${k}?`); if(!ok) return; selfWriteAt=Date.now(); await remove(ref(db,"auth/keys/"+k)); toast("Dihapus"); }
+      }catch{ toast("Gagal"); } })();
+    },{passive:true});
 
-  /* ===== Key actions ===== */
-  document.addEventListener("click", (e) => {
-    const b = e.target.closest("button[data-action]"); if (!b) return;
-    const k = b.dataset.key, act = b.dataset.action;
-    (async () => {
-      try {
-        if (act === "copy") {
-          await navigator.clipboard.writeText(k); toast("Disalin");
-        } else if (act === "share") {
-          const text = `KEY: ${k}`;
-          if (navigator.share) { try { await navigator.share({ title: "GxMods Key", text }); } catch { } }
-          else { await navigator.clipboard.writeText(text); toast("Disalin (share tidak didukung)"); }
-        } else if (act === "noexp") {
-          selfWriteAt = Date.now();
-          await update(ref(db, "auth/keys/" + k), { exp: 0 });
-          toast("No Exp");
-        } else if (act === "setdate") {
-          openModalSetDate(k, cache[k]?.exp || 0);
-        } else if (act === "del") {
-          const ok = await confirmDialog(`Hapus key: ${k}?`);
-          if (!ok) return;
-          selfWriteAt = Date.now();
-          await remove(ref(db, "auth/keys/" + k));
-          toast("Dihapus");
-        }
-      } catch { toast("Gagal"); }
-    })();
-  }, { passive: true });
+    /* ===== Form controls ===== */
+    if(btnAdd) btnAdd.onclick=async ()=>{ const raw=(newKey?.value||""); const k=sanitizeKey(raw); if(!k){ toast("Isi key"); return; } const val=(exp?.value||"").trim(); let ms=0; if(val){ const {Y,M,D}=fromInputDate(val); ms=toEOD(Y,M,D); } selfWriteAt=Date.now(); await update(ref(db,"auth/keys/"+k),{exp:ms}); if(newKey) newKey.value=""; if(exp) exp.value=""; toast("Ditambahkan"); };
+    if(btnSaveGlobal) btnSaveGlobal.onclick=async ()=>{ selfWriteAt=Date.now(); await set(ref(db,"auth/globalKey"),(globalKey?.value||"").trim()); toast("Global key disimpan"); };
+    if(btnClearGlobal) btnClearGlobal.onclick=async ()=>{ selfWriteAt=Date.now(); await set(ref(db,"auth/globalKey"),""); if(globalKey) globalKey.value=""; toast("Dikosongkan"); };
+    if(btnShareGlobal) btnShareGlobal.onclick=async ()=>{ const v=(globalKey?.value||"").trim(); if(!v){ toast("Global key kosong"); return; } const text="GLOBAL KEY: "+v; if(navigator.share){ try{ await navigator.share({title:"GxMods Global Key",text}); }catch{} } else { await navigator.clipboard.writeText(text); toast("Disalin (share tidak didukung)"); } };
 
-  /* ===== Form controls ===== */
-  $("#btnAdd").onclick = async () => {
-    let raw = (newKey.value || "");
-    const k = sanitizeKey(raw);
-    if (!k) { toast("Isi key"); return; }
-    const val = (exp.value || "").trim();
-    let ms = 0; if (val) { const { Y, M, D } = fromInputDate(val); ms = toEOD(Y, M, D); }
-    selfWriteAt = Date.now();
-    await update(ref(db, "auth/keys/" + k), { exp: ms });
-    newKey.value = ""; exp.value = ""; toast("Ditambahkan");
-  };
+    const debounce=(fn,ms)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
+    document.addEventListener("click",(e)=>{ const chip=e.target.closest(".chip[data-add]"); if(!chip||!exp) return; const add=parseInt(chip.dataset.add||"0",10); if(add===0){ exp.value=""; toast("Tanpa Exp"); return; } let baseDate; if((exp.value||"").trim()){ const {Y,M,D}=fromInputDate(exp.value.trim()); baseDate=new Date(Y,M-1,D);} else { baseDate=new Date(); } baseDate.setDate(baseDate.getDate()+add); const pad=n=>String(n).padStart(2,"0"); exp.value=`${baseDate.getFullYear()}-${pad(baseDate.getMonth()+1)}-${pad(baseDate.getDate())}`; toast(`+${add} hari`); });
+    const liveSearch=debounce(render,200);
+    search?.addEventListener("input",liveSearch,{passive:true});
+    search?.addEventListener("keyup",liveSearch,{passive:true});
 
-  btnSaveGlobal.onclick = async () => { selfWriteAt = Date.now(); await set(ref(db, "auth/globalKey"), (globalKey.value || "").trim()); toast("Global key disimpan"); };
-  btnClearGlobal.onclick = async () => { selfWriteAt = Date.now(); await set(ref(db, "auth/globalKey"), ""); globalKey.value = ""; toast("Dikosongkan"); };
-  btnShareGlobal.onclick = async () => {
-    const v = (globalKey.value || "").trim();
-    if (!v) { toast("Global key kosong"); return; }
-    const text = "GLOBAL KEY: " + v;
-    if (navigator.share) { try { await navigator.share({ title: "GxMods Global Key", text }); } catch { } }
-    else { await navigator.clipboard.writeText(text); toast("Disalin (share tidak didukung)"); }
-  };
+    try{ if('deviceMemory' in navigator && navigator.deviceMemory<=2){ document.body.classList.add('lite'); } }catch{}
 
-  // Chips tanggal cepat & pencarian
-  const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
-  document.addEventListener("click", (e) => {
-    const chip = e.target.closest(".chip[data-add]"); if (!chip) return;
-    const add = parseInt(chip.dataset.add || "0", 10);
-    if (add === 0) { exp.value = ""; toast("Tanpa Exp"); return; }
-    let baseDate;
-    if ((exp.value || "").trim()) {
-      const { Y, M, D } = fromInputDate(exp.value.trim());
-      baseDate = new Date(Y, M - 1, D);
-    } else {
-      baseDate = new Date();
-    }
-    baseDate.setDate(baseDate.getDate() + add);
-    const pad = n => String(n).padStart(2, "0");
-    exp.value = `${baseDate.getFullYear()}-${pad(baseDate.getMonth() + 1)}-${pad(baseDate.getDate())}`;
-    toast("Tanggal diset");
-  });
-  const liveSearch = debounce(render, 200);
-  $("#search")?.addEventListener("input", liveSearch, { passive: true });
-  $("#search")?.addEventListener("keyup", liveSearch, { passive: true });
-
-  // Lite mode
-  try { if ('deviceMemory' in navigator && navigator.deviceMemory <= 2) { document.body.classList.add('lite'); } } catch { }
-
-  // ===== Fallback anti “memuat terus” =====
-  window.addEventListener('error', () => { document.body.classList.remove('booting'); $("#boot")?.remove(); }, { once: true });
-  window.addEventListener('unhandledrejection', () => { document.body.classList.remove('booting'); $("#boot")?.remove(); }, { once: true });
-  setTimeout(() => { if (document.body.classList.contains('booting')) { document.body.classList.remove('booting'); $("#boot")?.remove(); route('login'); } }, 2500);
-</script>
+    // Fallback anti “memuat terus”
+    window.addEventListener('error',()=>{ document.body.classList.remove('booting'); document.getElementById("boot")?.remove(); },{once:true});
+    window.addEventListener('unhandledrejection',()=>{ document.body.classList.remove('booting'); document.getElementById("boot")?.remove(); },{once:true});
+    setTimeout(()=>{ if(document.body.classList.contains('booting')){ document.body.classList.remove('booting'); document.getElementById("boot")?.remove(); route('login'); } },2500);
+  </script>
+</body>
+</html>
