@@ -47,6 +47,8 @@
     .acct-meta{min-width:0}
     .acct-meta .name{font-weight:700;word-break:break-word}
     .acct-meta .email{font-weight:600;word-break:break-all}
+    .acct-meta .sub{font-size:.82rem;color:var(--muted);display:flex;gap:8px;align-items:center}
+    .role{border:1px solid var(--line);border-radius:999px;padding:2px 6px;font-size:.75rem;color:#c8d2dc}
     .nav-title{padding:10px 14px;color:var(--muted);font-size:.85rem}
     .nav{padding:8px;flex:1 1 auto;overflow:auto}
     .nav a{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:1px solid transparent}
@@ -55,7 +57,7 @@
     .nav .i{opacity:.9}
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .16s ease;z-index:65}
     .backdrop.show{opacity:1;pointer-events:auto}
-    .drawer-footer{padding:12px 14px;border-top:1px solid var(--line);font-size:.92rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+    .drawer-footer{padding:12px 14px;border-top:1px solid var(--line);font-size:.92rem;color:var(--muted);display:flex;justify-content:flex-start;align-items:center}
     .app{min-height:calc(100dvh - 56px);padding:14px 14px calc(14px + var(--bn-h) + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px}
     body.noauth .app{min-height:100dvh;display:grid;place-items:center;padding:14px}
     .page{display:none}
@@ -124,6 +126,7 @@
       <div class="acct-meta">
         <div class="name" id="menuName">-</div>
         <div class="email" id="menuEmail">Belum login</div>
+        <div class="sub"><span id="menuRole" class="role">—</span></div>
       </div>
     </div>
     <div class="nav-title">Navigasi</div>
@@ -141,8 +144,8 @@
         <span>Tentang</span>
       </a>
     </nav>
-    <div class="drawer-footer">
-      <span id="appVersion">v0.0.3-rules-only</span><button id="drawerLogout" class="btn small">Keluar</button>
+    <div class="drawer-footer" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span id="appVersion">v0.0.2</span><button id="drawerLogout" class="btn small">Keluar</button>
     </div>
   </aside>
   <div id="backdrop" class="backdrop"></div>
@@ -222,7 +225,7 @@
           <div><strong>Izinkan seleksi teks</strong></div>
           <label class="switch"><input id="allowSelect" type="checkbox"><span class="track"><i class="thumb"></i></span></label>
         </div>
-        <p class="muted">Catatan: pengaturan disimpan lokal (per perangkat). Akses & izin diatur via Rules, bukan di frontend.</p>
+        <p class="muted">Catatan: pengaturan disimpan lokal (per perangkat), tidak lagi menulis ke Realtime Database.</p>
       </div>
     </section>
 
@@ -259,7 +262,7 @@
 
     <!-- About -->
     <section class="page" data-page="about">
-      <div class="card"><h3>Tentang Panel</h3><p class="muted">Akses diatur 100% via Firebase Realtime Database Rules. Frontend tidak lagi menyaring role.</p></div>
+      <div class="card"><h3>Tentang Panel</h3><p class="muted">Data sinkron lintas perangkat via Firebase Realtime Database. Izin akses sepenuhnya dijaga oleh Rules.</p></div>
     </section>
 
     <!-- Login -->
@@ -269,6 +272,18 @@
         <div class="row"><input id="email" type="email" placeholder="Email" autocomplete="username"></div>
         <div class="row"><div style="position:relative;width:100%"><input id="password" type="password" placeholder="Password" autocomplete="current-password"><button id="togglePass" class="btn small" style="position:absolute;right:6px;top:6px">Lihat</button></div></div>
         <div class="row center-row"><button id="btnLogin" class="btn">Sign In</button></div>
+      </div>
+    </section>
+
+    <!-- Register (opsional, tidak dipakai dari UI) -->
+    <section class="page login-only" data-page="register">
+      <div class="card" style="width:min(92vw,420px);margin-inline:auto">
+        <h3 style="text-align:center">Daftar Akun</h3>
+        <div class="row"><input id="regEmail" type="email" placeholder="Email" autocomplete="username"></div>
+        <div class="row"><input id="regPass" type="password" placeholder="Password (min 6)" autocomplete="new-password"></div>
+        <div class="row"><input id="regPass2" type="password" placeholder="Ulangi password" autocomplete="new-password"></div>
+        <div class="row center-row" style="gap:8px"><button id="btnRegister" class="btn">Daftar</button><a href="#login" id="toLogin" class="btn ghost small">Sudah punya akun</a></div>
+        <p class="muted">Catatan: hak akses tetap ditentukan oleh Rules.</p>
       </div>
     </section>
   </main>
@@ -301,7 +316,7 @@
 
   <script type="module">
     /* ===== Versi ===== */
-    const APP_VERSION="v0.0.3-rules-only";
+    const APP_VERSION="v0.0.2";
 
     /* ===== Firebase ===== */
     const firebaseConfig={
@@ -316,7 +331,7 @@
     };
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, updateEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, createUserWithEmailAndPassword, updateEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
     import { getDatabase, ref as dRef, onValue, set, update, remove, off, get } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
     import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
 
@@ -326,7 +341,7 @@
     const db=getDatabase(app);
     const storage=getStorage(app);
 
-    /* ===== Helpers ===== */
+    /* ===== Shortcuts & helpers ===== */
     const $=(s,el=document)=>el.querySelector(s);
     const $$=(s,el=document)=>el.querySelectorAll(s);
     const toastEl=$("#toast"); let toastTimer=null;
@@ -336,7 +351,7 @@
     const fromInputDate=(v)=>{const [Y,M,D]=v.split("-").map(n=>parseInt(n,10));return {Y,M,D};};
     function sanitize(k){ return (k||"").normalize("NFKC").replace(/\s+/g,"").replace(/[^\w\-.:@]/g,""); }
 
-    /* Drawer & routing (auth-only; no role gate) */
+    /* ===== Routing (hanya cek login) ===== */
     const protectedRoutes=new Set(["dashboard","keys","settings","profile"]);
     const menuBtn=$("#menuBtn"), drawer=$("#drawer"), backdrop=$("#backdrop");
     if(drawer){ drawer.setAttribute("aria-hidden","true"); try{drawer.inert=true;}catch{} }
@@ -346,7 +361,8 @@
     if(backdrop) backdrop.onclick=closeDrawer;
     document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"&&drawer?.classList.contains("open")){ e.preventDefault(); closeDrawer(); }});
 
-    function isAuthed(){ return !!auth.currentUser; }
+    const isAuthed=()=> !!auth.currentUser; // TANPA cek admin
+
     function hardGuard(name){ return protectedRoutes.has(name)&&!isAuthed() ? "login" : name; }
     function updateBottomNav(name){ $$("#bottomnav a").forEach(a=>{ const active=a.dataset.route===name; a.classList.toggle("active",active); a.setAttribute("aria-current",active?"page":"false"); }); }
     function route(name){
@@ -360,9 +376,12 @@
     }
     $$(".nav a").forEach(a=>a.onclick=(e)=>{ e.preventDefault(); route(a.dataset.route); });
     $$("#bottomnav a").forEach(a=>a.addEventListener("click",(e)=>{ e.preventDefault(); route(a.dataset.route); },{passive:false}));
-    $("#topAvatar")?.addEventListener("click", ()=>route("profile"));
 
-    /* UI refs */
+    // top avatar -> profile
+    const topAvatar=$("#topAvatar");
+    if(topAvatar) topAvatar.addEventListener("click", ()=>route("profile"));
+
+    /* ===== UI refs ===== */
     const globalKey=$("#globalKey"), btnSaveGlobal=$("#btnSaveGlobal"), btnClearGlobal=$("#btnClearGlobal");
     const newKey=$("#newKey"), exp=$("#exp"), btnAdd=$("#btnAdd");
     const keyList=$("#keyList"), search=$("#search");
@@ -370,14 +389,17 @@
     const email=$("#email"), password=$("#password"), btnLogin=$("#btnLogin");
     const drawerLogout=$("#drawerLogout");
     const globalKeyCard=$("#globalKeyCard");
-    const menuEmail=$("#menuEmail"), menuAvatar=$("#menuAvatar"), menuName=$("#menuName");
+    const acctEmail=$("#acctEmail"), menuEmail=$("#menuEmail"), menuRole=$("#menuRole"), menuAvatar=$("#menuAvatar"), menuName=$("#menuName");
+    // profile refs
     const profileAvatar=$("#profileAvatar"), avatarFile=$("#avatarFile"), btnUploadAvatar=$("#btnUploadAvatar"), btnDeleteAvatar=$("#btnDeleteAvatar");
     const currEmail=$("#currEmail"), currPass=$("#currPass"), newEmail=$("#newEmail"), newPass=$("#newPass");
     const displayName=$("#displayName"), btnSaveProfile=$("#btnSaveProfile");
+    // register refs
+    const regEmail=$("#regEmail"), regPass=$("#regPass"), regPass2=$("#regPass2"), btnRegister=$("#btnRegister");
 
     if(drawerLogout) drawerLogout.addEventListener("click",()=>{ signOut(auth).catch(()=>{}); });
 
-    /* Settings local only */
+    /* ===== Settings (LOCAL ONLY) ===== */
     function readLocalSettings(){ return { reduce:localStorage.getItem("gx:reduce")==="1", sortExpired:localStorage.getItem("gx:sortExp")==="1", hideGlobal:localStorage.getItem("gx:hideGlobal")==="1", allowSelect:localStorage.getItem("gx:allowSelect")==="1", statusFilter:localStorage.getItem("gx:statusFilter")||"all", updatedAt:parseInt(localStorage.getItem("gx:settingsUpdatedAt")||"0",10)||0 }; }
     function writeLocalSettings(o){ localStorage.setItem("gx:reduce",o.reduce?"1":"0"); localStorage.setItem("gx:sortExp",o.sortExpired?"1":"0"); localStorage.setItem("gx:hideGlobal",o.hideGlobal?"1":"0"); localStorage.setItem("gx:allowSelect",o.allowSelect?"1":"0"); localStorage.setItem("gx:statusFilter",o.statusFilter||"all"); localStorage.setItem("gx:settingsUpdatedAt",String(o.updatedAt||Date.now())); }
     function applySettingsToDOM(o){
@@ -391,65 +413,79 @@
     function currentSettings(){ return { reduce:!!(reduce&&reduce.checked), sortExpired:!!(sortExpired&&sortExpired.checked), hideGlobal:!!(hideGlobal&&hideGlobal.checked), allowSelect:!!(allowSelect&&allowSelect.checked), statusFilter:getFilter(), updatedAt:Date.now() }; }
     [reduce,sortExpired,hideGlobal,allowSelect].forEach(el=>{ if(!el) return; el.addEventListener("change",()=>{ const d=currentSettings(); applySettingsToDOM(d); writeLocalSettings(d); if(el===sortExpired) render(); }); });
 
-    /* Data watchers (server rules decide access) */
+    /* ===== Data (dibatasi Rules) ===== */
     let cache={}; let selfWriteAt=0; let unsubs=[];
     function startData(){
       stopData();
-      onValue(dRef(db,"auth/globalKey"), s=>{ if(globalKey) globalKey.value = s.exists()? (s.val()||"") : ""; }, ()=>{/* ignore */});
-      onValue(dRef(db,"auth/keys"), s=>{
+      unsubs.push(onValue(dRef(db,"auth/globalKey"), s=>{ if(globalKey) globalKey.value = s.exists()? (s.val()||"") : ""; }, ()=>{/* ignore */}));
+      unsubs.push(onValue(dRef(db,"auth/keys"), s=>{
         const v=s.val()||{}; const serialized=JSON.stringify(v);
         if(JSON.stringify(cache)!==serialized){ cache=v; try{ localStorage.setItem("gx:cacheKeys",serialized); }catch{} render(); if(Date.now()-selfWriteAt>1200) toast("Data diperbarui"); }
-      }, err=>{ /* read denied -> tampilkan kosong */ cache={}; render(); });
-      // profile (name)
-      const u=auth.currentUser; if(u){
-        onValue(dRef(db, `auth/profiles/${u.uid}`), s=>{
-          const p=s.val()||{};
-          if(menuName) menuName.textContent = p.name || "(tanpa nama)";
-          if(displayName) displayName.value = p.name || "";
-        }, ()=>{ if(menuName) menuName.textContent="(tanpa nama)"; });
-      }
+      }, err=>{ console.warn("keys read denied/err:", err?.code||err); cache={}; render(); }));
     }
-    function stopData(){ /* listeners are fine to leave; page reload replaces them */ }
+    function stopData(){ try{ unsubs.forEach(off=>typeof off==="function"&&off()); }catch{} unsubs=[]; try{ off(dRef(db,"auth/globalKey")); off(dRef(db,"auth/keys")); }catch{} }
+    try{ const c=localStorage.getItem("gx:cacheKeys"); if(c){ cache=JSON.parse(c); render(); } }catch{}
 
-    /* Account visual */
+    /* ===== Account visual ===== */
     function hueHash(str){ let h=0; for(let i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))>>>0; } return h%360; }
     function setAccountVisual(u){
       const text=(u&&u.email)?u.email:"Belum login";
-      $("#acctEmail")?.textContent=text;
+      if(acctEmail) acctEmail.textContent=text;
       if(menuEmail) menuEmail.textContent=text;
+      if(menuRole) menuRole.textContent = u ? "authed" : "—";
+
       const init=(text&&text[0]||"?").toUpperCase();
       const hue=hueHash(text);
       const colorBG=`hsl(${hue} 35% 22%)`, colorBD=`hsl(${hue} 35% 30%)`;
+
       function putAvatar(el, url){
         if(!el) return;
         el.innerHTML="";
-        if(url){ const img=document.createElement("img"); img.src=url; el.appendChild(img); }
-        else{ const span=document.createElement("span"); span.textContent=init; el.appendChild(span); }
+        if(url){
+          const img=document.createElement("img"); img.src=url; el.appendChild(img);
+        }else{
+          const span=document.createElement("span"); span.textContent=init; el.appendChild(span);
+        }
         el.style.background=colorBG; el.style.borderColor=colorBD;
       }
+
       if(u){
         getDownloadURL(sRef(storage, `profile/${u.uid}.jpg`)).then(url=>{
-          putAvatar(menuAvatar, url); putAvatar($("#topAvatar"), url); putAvatar($("#profileAvatar"), url);
+          putAvatar(menuAvatar, url); putAvatar(topAvatar, url); putAvatar(profileAvatar, url);
         }).catch(()=>{
-          putAvatar(menuAvatar, null); putAvatar($("#topAvatar"), null); putAvatar($("#profileAvatar"), null);
+          putAvatar(menuAvatar, null); putAvatar(topAvatar, null); putAvatar(profileAvatar, null);
         });
       }else{
-        putAvatar(menuAvatar, null); putAvatar($("#topAvatar"), null); putAvatar($("#profileAvatar"), null);
+        putAvatar(menuAvatar, null); putAvatar(topAvatar, null); putAvatar(profileAvatar, null);
       }
+
       if(currEmail) currEmail.value=u?.email||"";
+      if(menuName) menuName.textContent = u ? (menuName.textContent||"(tanpa nama)") : "-";
     }
 
-    /* Auth state (no role gating) */
+    /* ===== Profile name sync (RTDB) ===== */
+    const PROFILE_PATH=(uid)=>`auth/profiles/${uid}`;
+    let unwatchProfile=null;
+    function watchProfile(uid){
+      if(unwatchProfile) try{ unwatchProfile(); }catch{}
+      unwatchProfile = onValue(dRef(db, PROFILE_PATH(uid)), (s)=>{
+        const p=s.val()||{};
+        if(menuName) menuName.textContent = p.name || "(tanpa nama)";
+        if(displayName) displayName.value = p.name || "";
+      }, ()=>{
+        if(menuName) menuName.textContent="(tanpa nama)";
+      });
+    }
+
+    /* ===== Auth state (tanpa admin gate) ===== */
     onAuthStateChanged(auth,(user)=>{
       try{
         if(user){
-          document.body.classList.add("authed"); document.body.classList.remove("noauth");
-          setAccountVisual(user); startData();
-          route(localStorage.getItem("gx:route")||"dashboard");
-          refreshLocalDbUsage();
+          updateNav(true); startData(); setAccountVisual(user); watchProfile(user.uid);
+          route(localStorage.getItem("gx:route")||"dashboard"); refreshLocalDbUsage();
         }else{
-          document.body.classList.remove("authed"); document.body.classList.add("noauth");
-          setAccountVisual(null); route("login");
+          stopData(); updateNav(false); route("login"); setAccountVisual(null);
+          if(unwatchProfile) try{ unwatchProfile(); }catch{}
         }
       }finally{
         document.body.classList.remove("booting");
@@ -457,10 +493,17 @@
       }
     });
 
-    /* Login */
+    function updateNav(authed){
+      document.body.classList.toggle("authed",!!authed);
+      document.body.classList.toggle("noauth",!authed);
+      if(topAvatar) topAvatar.classList.toggle("hide",!authed);
+      // Tidak ada disable tombol berbasis role; biarkan Rules yang menolak jika tidak berhak
+    }
+
+    /* ===== Login & Register ===== */
     const togglePass=$("#togglePass");
     if(togglePass) togglePass.addEventListener("click",()=>{ const pw=$("#password"); if(!pw) return; const t=pw.getAttribute("type")==="password"?"text":"password"; pw.setAttribute("type",t); togglePass.textContent=(t==="password"?"Lihat":"Sembunyikan"); pw.focus(); });
-    document.addEventListener("keydown",(e)=>{ const page=$(".page.show")?.dataset.page; if(e.key==="Enter" && page==="login"){ btnLogin?.click(); } });
+    document.addEventListener("keydown",(e)=>{ const page=$(".page.show")?.dataset.page; if(e.key==="Enter" && page==="login"){ btnLogin?.click(); } if(e.key==="Enter" && page==="register"){ btnRegister?.click(); } });
     if(btnLogin) btnLogin.addEventListener("click",async ()=>{
       const em=(email?.value||"").trim(); const pw=password?.value||"";
       if(!em||!pw){ toast("Isi email & password"); return; }
@@ -468,8 +511,18 @@
       catch(e){ toast("Login gagal"); }
       finally{ btnLogin.disabled=false; btnLogin.textContent="Sign In"; }
     });
+    $("#toLogin")?.addEventListener("click",(e)=>{ e.preventDefault(); route("login"); });
+    if(btnRegister) btnRegister.addEventListener("click", async ()=>{
+      const em=(regEmail?.value||"").trim(), p1=regPass?.value||"", p2=regPass2?.value||"";
+      if(!em||!p1||!p2){ toast("Lengkapi semua kolom"); return; }
+      if(p1.length<6){ toast("Password minimal 6 karakter"); return; }
+      if(p1!==p2){ toast("Password tidak sama"); return; }
+      try{ btnRegister.disabled=true; btnRegister.textContent="Mendaftarkan…"; await createUserWithEmailAndPassword(auth, em, p1); toast("Daftar sukses"); route("dashboard"); }
+      catch(e){ toast("Gagal daftar"); }
+      finally{ btnRegister.disabled=false; btnRegister.textContent="Daftar"; }
+    });
 
-    /* Profile: avatar upload / delete */
+    /* ===== Profile: avatar upload / delete ===== */
     function fileValid(f){
       if(!f) return {ok:false,msg:"Pilih file dulu"};
       if(!/^image\//.test(f.type)) return {ok:false,msg:"File harus gambar"};
@@ -503,18 +556,17 @@
       finally{ btnDeleteAvatar.disabled=false; }
     });
 
-    /* Profile: name save (rules decide permission) */
-    const PROFILE_PATH=(uid)=>`auth/profiles/${uid}`;
+    /* ===== Profile: simpan nama ===== */
     if(btnSaveProfile) btnSaveProfile.addEventListener("click", async ()=>{
       const u=auth.currentUser; if(!u){ toast("Belum login"); return; }
       const name=(displayName?.value||"").trim();
       try{
         await update(dRef(db, PROFILE_PATH(u.uid)), { name, updatedAt: Date.now() });
         toast("Nama disimpan");
-      }catch(e){ toast("Gagal simpan nama"); }
+      }catch(e){ toast("Gagal simpan nama (Rules?)"); }
     });
 
-    /* Email & password */
+    /* ===== Profile: email & password ===== */
     async function doReauth(){
       const u=auth.currentUser; if(!u){ toast("Belum login"); return false; }
       const pass=(currPass?.value||""); if(!pass){ toast("Isi password saat ini"); return false; }
@@ -524,14 +576,14 @@
         return true;
       }catch(e){ toast("Password salah / sesi kedaluwarsa"); return false; }
     }
-    $("#btnUpdateEmail")?.addEventListener("click", async ()=>{
+    if(btnUpdateEmail) btnUpdateEmail.addEventListener("click", async ()=>{
       const u=auth.currentUser; if(!u) return;
       const em=(newEmail?.value||"").trim(); if(!em){ toast("Email baru kosong"); return; }
       if(!(await doReauth())) return;
       try{ await updateEmail(u, em); toast("Email diubah"); setAccountVisual(auth.currentUser); newEmail.value=""; }
       catch(e){ toast("Gagal ubah email"); }
     });
-    $("#btnUpdatePass")?.addEventListener("click", async ()=>{
+    if(btnUpdatePass) btnUpdatePass.addEventListener("click", async ()=>{
       const u=auth.currentUser; if(!u) return;
       const p=(newPass?.value||""); if(p.length<6){ toast("Minimal 6 karakter"); return; }
       if(!(await doReauth())) return;
@@ -539,7 +591,7 @@
       catch(e){ toast("Gagal ubah password"); }
     });
 
-    /* Keys render & actions (no frontend role gate) */
+    /* ===== Keys render & actions ===== */
     function humanBytes(n){ const u=["B","KB","MB","GB","TB"]; let i=0,v=Math.max(n||0,0); while(v>=1024 && i<u.length-1){ v/=1024; i++; } return `${v.toFixed(v<10&&i>0?1:0)}${u[i]}`; }
     function setUsage(elId,barId,val,denom){ const el=document.getElementById(elId),bar=document.getElementById(barId); if(el) el.textContent=humanBytes(val); if(bar) bar.style.setProperty("--w",Math.min(100,(val/Math.max(denom,1))*100).toFixed(1)+"%"); }
     async function refreshLocalDbUsage(){ try{ const snap=await get(dRef(db)); const size=new Blob([JSON.stringify(snap.val()||{})]).size; setUsage("db-bytes","bar-db",size,1024*1024); }catch(e){} }
@@ -578,11 +630,11 @@
         actions.appendChild(btnNoExp); actions.appendChild(btnDate); actions.appendChild(del);
         row.appendChild(head); row.appendChild(sub); row.appendChild(actions); frag.appendChild(row);
       }
-      if(!frag.childNodes.length){ const empty=document.createElement("div"); empty.className="item"; empty.innerHTML='<span class="muted">Tidak ada hasil / akses ditolak.</span>'; frag.appendChild(empty); }
+      if(!frag.childNodes.length){ const empty=document.createElement("div"); empty.className="item"; empty.innerHTML='<span class="muted">Tidak ada hasil.</span>'; frag.appendChild(empty); }
       keyList.appendChild(frag); updateAnalytics();
     }
 
-    /* Key actions */
+    /* Key actions (biar Rules yang nolak kalau nggak berhak) */
     document.addEventListener("click",(e)=>{
       const b=e.target.closest("button[data-action]"); if(!b) return;
       const k=b.dataset.key,act=b.dataset.action;
@@ -591,11 +643,11 @@
         else if(act==="noexp"){ selfWriteAt=Date.now(); await update(dRef(db,"auth/keys/"+k),{exp:0}); toast("No Exp"); }
         else if(act==="setdate"){ openModalSetDate(k,cache[k]?.exp||0); }
         else if(act==="del"){ const ok=await confirmDialog(`Hapus key: ${k}?`); if(!ok) return; selfWriteAt=Date.now(); await remove(dRef(db,"auth/keys/"+k)); toast("Dihapus"); }
-      }catch{ toast("Aksi ditolak oleh Rules"); } })();
+      }catch(err){ toast("Aksi ditolak oleh Rules"); } })();
     },{passive:true});
 
     /* Form controls */
-    $("#btnAdd")?.addEventListener("click", async ()=>{
+    if(btnAdd) btnAdd.onclick=async ()=>{
       const raw=(newKey?.value||""); const k=sanitize(raw);
       if(!k){ toast("Isi key"); return; }
       const val=(exp?.value||"").trim(); let ms=0; if(val){ const {Y,M,D}=fromInputDate(val); ms=toEOD(Y,M,D); }
@@ -604,10 +656,23 @@
         await update(dRef(db,"auth/keys/"+k),{exp:ms});
         if(newKey) newKey.value=""; if(exp) exp.value="";
         toast("Ditambahkan");
-      }catch{ toast("Aksi ditolak oleh Rules"); }
-    });
-    $("#btnSaveGlobal")?.addEventListener("click", async ()=>{ try{ selfWriteAt=Date.now(); await set(dRef(db,"auth/globalKey"),(globalKey?.value||"").trim()); toast("Global key disimpan"); }catch{ toast("Aksi ditolak oleh Rules"); } });
-    $("#btnClearGlobal")?.addEventListener("click", async ()=>{ try{ selfWriteAt=Date.now(); await set(dRef(db,"auth/globalKey"),""); if(globalKey) globalKey.value=""; toast("Dikosongkan"); }catch{ toast("Aksi ditolak oleh Rules"); } });
+      }catch(e){ toast("Aksi ditolak oleh Rules"); }
+    };
+    if(btnSaveGlobal) btnSaveGlobal.onclick=async ()=>{ 
+      try{
+        selfWriteAt=Date.now(); 
+        await set(dRef(db,"auth/globalKey"),(globalKey?.value||"").trim()); 
+        toast("Global key disimpan"); 
+      }catch(e){ toast("Aksi ditolak oleh Rules"); }
+    };
+    if(btnClearGlobal) btnClearGlobal.onclick=async ()=>{ 
+      try{
+        selfWriteAt=Date.now(); 
+        await set(dRef(db,"auth/globalKey"),""); 
+        if(globalKey) globalKey.value=""; 
+        toast("Dikosongkan"); 
+      }catch(e){ toast("Aksi ditolak oleh Rules"); }
+    };
 
     /* Modal tanggal */
     const modalDateWrap=$("#modalDateWrap"), modalDate=$("#modalDate"), modalSave=$("#modalSave"), modalCancel=$("#modalCancel");
@@ -617,7 +682,16 @@
     if(modalCancel) modalCancel.onclick=closeModalDate;
     if(modalDateWrap) modalDateWrap.addEventListener("click",(e)=>{ if(e.target===modalDateWrap) closeModalDate(); });
     document.addEventListener("keydown",(e)=>{ if(e.key==="Escape" && modalDateWrap?.classList.contains("show")) closeModalDate(); });
-    if(modalSave) modalSave.onclick=async ()=>{ if(!modalKey) return closeModalDate(); const v=(modalDate?.value||"").trim(); if(!v) return closeModalDate(); const {Y,M,D}=fromInputDate(v); const ms=toEOD(Y,M,D); try{ selfWriteAt=Date.now(); await update(dRef(db,"auth/keys/"+modalKey),{exp:ms}); toast("Tanggal di-set"); }catch{ toast("Aksi ditolak oleh Rules"); } closeModalDate(); };
+    if(modalSave) modalSave.onclick=async ()=>{ 
+      if(!modalKey) return closeModalDate(); 
+      const v=(modalDate?.value||"").trim(); if(!v) return closeModalDate(); 
+      const {Y,M,D}=fromInputDate(v); const ms=toEOD(Y,M,D); 
+      try{
+        selfWriteAt=Date.now(); await update(dRef(db,"auth/keys/"+modalKey),{exp:ms}); 
+        toast("Tanggal di-set"); 
+      }catch(e){ toast("Aksi ditolak oleh Rules"); }
+      finally{ closeModalDate(); }
+    };
 
     /* Modal konfirmasi */
     const modalConfirmWrap=$("#modalConfirmWrap"), confirmMsg=$("#confirmMsg"), confirmOk=$("#confirmOk"), confirmCancel=$("#confirmCancel"); let confirmResolver=null;
@@ -631,7 +705,7 @@
     document.addEventListener("click",(e)=>{ const chip=e.target.closest(".chip[data-add]"); if(!chip||!exp) return; const add=parseInt(chip.dataset.add||"0",10); if(add===0){ exp.value=""; toast("Tanpa Exp"); return; } let baseDate; if((exp.value||"").trim()){ const {Y,M,D}=fromInputDate(exp.value.trim()); baseDate=new Date(Y,M-1,D);} else { baseDate=new Date(); } baseDate.setDate(baseDate.getDate()+add); const pad=n=>String(n).padStart(2,"0"); exp.value=`${baseDate.getFullYear()}-${pad(baseDate.getMonth()+1)}-${pad(baseDate.getDate())}`; toast(`+${add} hari`); });
     const liveSearch=debounce(render,200); search?.addEventListener("input",liveSearch,{passive:true}); search?.addEventListener("keyup",liveSearch,{passive:true});
 
-    // Bailout anti memuat-terus
+    // Fallback anti “memuat terus”
     const bail=()=>{ document.body.classList.remove('booting'); document.getElementById("boot")?.remove(); if(!$(".page.show")) route('login'); };
     window.addEventListener('error',bail,{once:true});
     window.addEventListener('unhandledrejection',bail,{once:true});
