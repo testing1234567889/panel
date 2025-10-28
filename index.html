@@ -186,7 +186,7 @@
 
       <div class="card">
         <div class="row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between">
-          <h3 style="margin:0">Daftar Key</h3>
+          <h3 style="margin:0">Keys</h3>
           <input id="search" type="search" placeholder="Cari key…" style="min-width:160px;max-width:260px" autocomplete="off" />
         </div>
         <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -264,7 +264,7 @@
         <div class="row"><input id="email" type="email" placeholder="Email" autocomplete="username"></div>
         <div class="row"><div style="position:relative;width:100%"><input id="password" type="password" placeholder="Password" autocomplete="current-password"><button id="togglePass" class="btn small" style="position:absolute;right:6px;top:6px">Lihat</button></div></div>
         <div class="row center-row"><button id="btnLogin" class="btn">Sign In</button></div>
-        <div class="row center-row"><a href="#register" id="toRegister" class="btn ghost small">Daftar akun</a></div>
+        <!-- Tombol "Daftar akun" DIHAPUS sesuai permintaan -->
       </div>
     </section>
 
@@ -283,7 +283,7 @@
 
   <nav id="bottomnav" class="bottomnav" role="navigation" aria-label="Navigasi utama">
     <a href="#dashboard" data-route="dashboard" id="bn-home" aria-current="page"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg><span>Home</span></a>
-    <a href="#keys" data-route="keys" id="bn-keys"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="8" r="3"/><path d="M10 8h10l-2 2 2 2-2 2 2 2"/></svg><span>Daftar Key</span></a>
+    <a href="#keys" data-route="keys" id="bn-keys"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="8" r="3"/><path d="M10 8h10l-2 2 2 2-2 2 2 2"/></svg><span>Keys</span></a>
   </nav>
 
   <div id="boot"><span class="muted">Memuat…</span></div>
@@ -526,7 +526,7 @@
       catch(e){ toast("Login gagal"); }
       finally{ btnLogin.disabled=false; btnLogin.textContent="Sign In"; }
     });
-    $("#toRegister")?.addEventListener("click",(e)=>{ e.preventDefault(); route("register"); });
+    // Link ke Register dari Login dihapus (tombolnya sudah dihapus di HTML)
     $("#toLogin")?.addEventListener("click",(e)=>{ e.preventDefault(); route("login"); });
     if(btnRegister) btnRegister.addEventListener("click", async ()=>{
       const em=(regEmail?.value||"").trim(), p1=regPass?.value||"", p2=regPass2?.value||"";
@@ -654,7 +654,6 @@
     },{passive:true});
 
     /* Form controls */
-    // btnAdd sudah didefinisikan di bagian "UI refs"
     if(btnAdd) btnAdd.onclick=async ()=>{
       const raw=(newKey?.value||""); const k=sanitize(raw);
       if(!k){ toast("Isi key"); return; }
