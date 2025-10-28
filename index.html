@@ -393,7 +393,7 @@
     if(topAvatar) topAvatar.addEventListener("click", ()=>route("profile"));
 
     /* UI refs */
-    const globalKey=$("#globalKey"), btnSaveGlobal=$("#btnSaveGlobal"), btnClearGlobal=$("#btnClearGlobal"), btnShareGlobal=$("#btnShareGlobal");
+    const globalKey=$("#globalKey"), btnSaveGlobal=$("#btnSaveGlobal"), btnClearGlobal=$("#btnClearGlobal");
     const newKey=$("#newKey"), exp=$("#exp"), btnAdd=$("#btnAdd");
     const keyList=$("#keyList"), search=$("#search");
     const sortExpired=$("#sortExpired"), hideGlobal=$("#hideGlobal"), allowSelect=$("#allowSelect"), reduce=$("#reduce");
@@ -421,15 +421,9 @@
       setFilterChip(o.statusFilter||"all");
     }
     applySettingsToDOM(readLocalSettings());
-    let pushing=false, remoteReady=false;
-    function currentSettings(){ return { reduce:!!(reduce&&reduce.checked), sortExpired:!!(sortExpired&&sortExpired.checked), hideGlobal:!!(hideGlobal&&hideGlobal.checked), allowSelect:!!(allowSelect&&allowSelect.checked), statusFilter:getFilter(), updatedAt:Date.now() }; }
-                if(rAt===0 && lAt>0){ pushSettings(uid); remoteReady=true; return; }
-        if(rAt>lAt){ writeLocalSettings(remote); applySettingsToDOM(remote); }
-        else if(rAt<lAt && remoteReady){ pushSettings(uid); }
-        remoteReady=true;
-      },()=>{/* ignore */});
-    }
-        [reduce,sortExpired,hideGlobal,allowSelect].forEach(el=>{ if(!el) return; el.addEventListener("change",()=>{ const d=currentSettings(); applySettingsToDOM(d); writeLocalSettings(d); if(el===sortExpired) render(); }); });
+    
+    /* settings sync stripped: local-only */
+    [reduce,sortExpired,hideGlobal,allowSelect].forEach(el=>{ if(!el) return; el.addEventListener("change",()=>{ const d=currentSettings(); applySettingsToDOM(d); writeLocalSettings(d); if(el===sortExpired) render(); }); });
 
     /* ===== Data ===== */
     let cache={}; let selfWriteAt=0; let unsubs=[];
