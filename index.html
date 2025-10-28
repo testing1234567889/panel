@@ -762,16 +762,34 @@ import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://ww
       return h%360;
     }
     function setAccountEmail(u){
-      const text = (u && u.email) ? u.email : "Belum login";
-      if(acctEmail) acctEmail.textContent = text;
-      if(menuEmail) menuEmail.textContent = text;
-      const role = (u && isAuthed()) ? (roleOf(u.uid)||"editor") : "guest";
-      if(menuRole) menuRole.textContent = role;
-      const init = (text && text[0] || "?").toUpperCase();
-      if(menuAvatar){
-        menuAvatar.innerHTML = `<span>${init}</span>`;
-        const hue = hueHash(text);
-        menuAvatar.style.background = `hsl(${hue} 35% 22%)`;
+  const text = (u && u.email) ? u.email : "Belum login";
+  if(acctEmail) acctEmail.textContent = text;
+  if(menuEmail) menuEmail.textContent = text;
+
+  const role = (u && isAuthed()) ? (roleOf(u.uid)||"editor") : "guest";
+  if(menuRole) menuRole.textContent = role;
+
+  const init = (text && text[0] || "?").toUpperCase();
+
+  // Drawer avatar
+  if(menuAvatar){
+    menuAvatar.innerHTML = `<span>${init}</span>`;
+    const hue = hueHash(text);
+    menuAvatar.style.background = `hsl(${hue} 35% 22%)`;
+    menuAvatar.style.borderColor = `hsl(${hue} 35% 30%)`;
+  }
+
+  // Settings preview
+  const acctEmailEl = $("#acctEmail");
+  if(acctEmailEl) acctEmailEl.textContent = text;
+  if(typeof pfName !== 'undefined' && pfName) pfName.value = (u && u.displayName) || "";
+  if(typeof pfPreview !== 'undefined' && pfPreview){
+    const p = u && u.photoURL;
+    if(p){ pfPreview.style.background = `center/cover no-repeat url('${p}')`; pfPreview.innerHTML=""; }
+    else { pfPreview.style.background=""; pfPreview.innerHTML = `<span>${init}</span>`; }
+  }
+}
+35% 22%)`;
         menuAvatar.style.borderColor = `hsl(${hue} 35% 30%)`;
       }
       const acctEmailEl = $("#acctEmail");
@@ -790,9 +808,23 @@ import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://ww
     }
 
     /* Auth state */
-    onAuthStateChanged(auth, (user)=>{ if(user){
-        startSettingsSync(user.uid);
-        updateNav(true); startData();
+    onAuthStateChanged(auth, (user)=>{
+  if(user){
+    startSettingsSync(user.uid);
+    updateNav(true);
+    startData();
+    setAccountEmail(user);
+    route(localStorage.getItem("gx:route") || "dashboard");
+  } else {
+    stopData();
+    updateNav(false);
+    route("login");
+    setAccountEmail(null);
+  }
+  document.body.classList.remove("booting");
+  $("#boot")?.remove();
+});
+updateNav(true); startData();
         setAccountEmail(user);
         route(localStorage.getItem("gx:route") || "dashboard");
       } else { stopData(); updateNav(false); route("login"); setAccountEmail(null); ); toast("Bukan admin"); }
