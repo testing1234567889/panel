@@ -374,10 +374,10 @@
               <pre style="white-space:pre-wrap;background:#0b0f0e;padding:8px;border-radius:8px">rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /profile/{uid}.jpg {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == uid;
-    }
+    match /profile/{file} {
+    allow read:  if request.auth != null && file == request.auth.uid + '.jpg';
+    allow write: if request.auth != null && file == request.auth.uid + '.jpg';
+  }
   }
 }</pre>
             </div>
@@ -499,8 +499,9 @@ service firebase.storage {
   measurementId: "G-H6WCVTQQEM"
 };
 
-    import { initializeApp, updateProfile, updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-    import { getDatabase, ref, onValue, set, update, remove, off, get } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, updateProfile, updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import { getDatabase, ref, onValue, set, update, remove, off, get } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
 
     
     import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
@@ -789,25 +790,46 @@ btnChangePass?.addEventListener("click", async ()=>{
       let h=0; for(let i=0;i<str.length;i++){ h=(h*31 + str.charCodeAt(i))>>>0; }
       return h%360;
     }
-    function setAccountEmail(u){
-      const text = (u && u.email) ? u.email : "Belum login";
-      if(acctEmail) acctEmail.textContent = text;
-      if(menuEmail) menuEmail.textContent = text;
+    
+function setAccountEmail(u){
+  const text = (u && u.email) ? u.email : "Belum login";
+  if(acctEmail) acctEmail.textContent = text;
+  if(menuEmail) menuEmail.textContent = text;
 
-      const role = (u && isAuthed()) ? (roleOf(u.uid)||"editor") : "guest";
-      if(menuRole) menuRole.textContent = role;
+  const role = (u && isAuthed()) ? (roleOf(u.uid)||"editor") : "guest";
+  if(menuRole) menuRole.textContent = role;
 
-      // Avatar inisial + warna
-      const init = (text && text[0] || "?").toUpperCase();
-      if(menuAvatar){
-        menuAvatar.innerHTML = `<span>${init
-      // Sync settings panel preview
-      const acctEmailEl = $("#acctEmail");
-      if(acctEmailEl) acctEmailEl.textContent = text;
-      const n = u && (u.displayName||"");
-      if(pfName) pfName.value = n || "";
-      const p = u && u.photoURL;
-      if(pfPreview) pfPreview.style.background = p ? `center/cover no-repeat url('${p}')` : "";
+  // Avatar inisial + warna di drawer
+  const init = (text && text[0] || "?").toUpperCase();
+  if(menuAvatar){
+    menuAvatar.innerHTML = `<span>${init}</span>`;
+    const hue = hueHash(text);
+    menuAvatar.style.background = `hsl(${hue} 35% 22%)`;
+    menuAvatar.style.borderColor = `hsl(${hue} 35% 30%)`;
+  }
+
+  // Sinkron preview di Settings
+  const acctEmailEl = $("#acctEmail");
+  if(acctEmailEl) acctEmailEl.textContent = text;
+  const n = u && (u.displayName||"");
+  if(pfName) pfName.value = n || "";
+  const p = u && u.photoURL;
+  if(pfPreview) {
+    if (p) { pfPreview.style.background = `center/cover no-repeat url('${p}')`; pfPreview.innerHTML=""; }
+    else { pfPreview.style.background = ""; pfPreview.innerHTML = `<span>${init}</span>`; }
+  }
+
+  // Avatar kanan atas
+  if(topAvatar){
+    const hue = hueHash(text);
+    const init2 = init;
+    topAvatar.innerHTML = `<span style="font-weight:700">${init2}</span>`;
+    topAvatar.style.background = `hsl(${hue} 35% 22%)`;
+    topAvatar.style.border = "1px solid";
+    topAvatar.style.borderColor = `hsl(${hue} 35% 30%)`;
+  }
+}
+')` : "";
       if(!p && pfPreview){ pfPreview.innerHTML = `<span>${init}</span>`; }
 
     }
